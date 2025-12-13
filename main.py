@@ -31,6 +31,11 @@ while True:
     frame1, results1 = detect_and_draw(frame1, pose_local)
     frame2, results2 = detect_and_draw(frame2, pose_ip)
 
+
+    # Compute 3D angles from stereo views (assumes cameras at +/-45deg)
+    angles = compute_angles_3d(results1, results2, focal=1.0, baseline=0.6)
+    draw_angles_on_frames(frame1, frame2, results1, results2, angles)
+
     cv2.imshow('Dual Camera', np.hstack((frame1, frame2)))
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
