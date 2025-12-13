@@ -1,15 +1,22 @@
-import IPStream
+from utils import *
 import cv2
 import numpy as np
+import mediapipe as mp
 
 
 # Konfiguracja
 local_idx = 0
 ip_url = "http://192.168.254.101:8080/video"
 
+mp_pose = mp.solutions.pose
+ 
+pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 cap_local = cv2.VideoCapture(local_idx)
 cam_ip = IPStream(ip_url) # nie laguje, prawie zerowy delay
+
+
 
 while True:
     ret1, frame1 = cap_local.read()
@@ -20,6 +27,9 @@ while True:
     # Skalowanie
     frame1 = cv2.resize(frame1, (640, 480))
     frame2 = cv2.resize(frame2, (640, 480))
+
+    frame1, results1 = detect_and_draw(frame1, pose_local)
+    frame2, results2 = detect_and_draw(frame2, pose_ip)
 
     cv2.imshow('Dual Camera', np.hstack((frame1, frame2)))
 

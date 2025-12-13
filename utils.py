@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import threading
+import mediapipe as mp
 
 class IPStream:
     def __init__(self, url):
@@ -17,3 +18,18 @@ class IPStream:
     def release(self):
         self.running = False
         self.cap.release()
+
+def detect_and_draw(frame, model):
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_rgb.flags.writeable = False
+    
+    results = model.process(frame_rgb)
+    
+    if results.pose_landmarks:
+        mp.solutions.drawing_utils.draw_landmarks(
+            frame, 
+            results.pose_landmarks, 
+            mp.solutions.pose.POSE_CONNECTIONS
+        )
+    
+    return frame, results
