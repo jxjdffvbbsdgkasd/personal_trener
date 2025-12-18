@@ -3,35 +3,39 @@ import numpy as np
 import threading
 import mediapipe as mp
 
+
 class IPStream:
     def __init__(self, url):
         self.cap = cv2.VideoCapture(url)
         self.frame = np.zeros((480, 640, 3), np.uint8)
         self.running = True
         threading.Thread(target=self.update, daemon=True).start()
+
     def update(self):
         while self.running:
             ret, img = self.cap.read()
-            if ret: self.frame = img
+            if ret:
+                self.frame = img
+
     def read(self):
         return True, self.frame
+
     def release(self):
         self.running = False
         self.cap.release()
 
+
 def detect_and_draw(frame, model):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_rgb.flags.writeable = False
-    
+
     results = model.process(frame_rgb)
-    
+
     if results.pose_landmarks:
         mp.solutions.drawing_utils.draw_landmarks(
-            frame, 
-            results.pose_landmarks, 
-            mp.solutions.pose.POSE_CONNECTIONS
+            frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS
         )
-    
+
     return frame, results
 
 
@@ -65,17 +69,21 @@ def _triangulate_point(x1, y1, x2, y2, focal=1.0, baseline=0.6):
     d2 = d2 / np.linalg.norm(d2)
 
     # Camera positions: left (-b/2,0,0), right (+b/2,0,0)
-    o1 = np.array([-baseline/2.0, 0.0, 0.0])
-    o2 = np.array([ baseline/2.0, 0.0, 0.0])
+    o1 = np.array([-baseline / 2.0, 0.0, 0.0])
+    o2 = np.array([baseline / 2.0, 0.0, 0.0])
 
     # Rotate directions by yaw: left camera looks +45deg, right camera -45deg
     th = np.deg2rad(45.0)
-    R_left = np.array([[ np.cos(th), 0.0, np.sin(th)],
-                       [ 0.0,        1.0, 0.0      ],
-                       [-np.sin(th), 0.0, np.cos(th)]])
-    R_right = np.array([[ np.cos(-th), 0.0, np.sin(-th)],
-                        [ 0.0,         1.0, 0.0       ],
-                        [-np.sin(-th), 0.0, np.cos(-th)]])
+    R_left = np.array(
+        [[np.cos(th), 0.0, np.sin(th)], [0.0, 1.0, 0.0], [-np.sin(th), 0.0, np.cos(th)]]
+    )
+    R_right = np.array(
+        [
+            [np.cos(-th), 0.0, np.sin(-th)],
+            [0.0, 1.0, 0.0],
+            [-np.sin(-th), 0.0, np.cos(-th)],
+        ]
+    )
 
     v1 = R_left.dot(d1)
     v2 = R_right.dot(d2)
@@ -87,13 +95,13 @@ def _triangulate_point(x1, y1, x2, y2, focal=1.0, baseline=0.6):
     w0 = o1 - o2
     e = np.dot(v1, w0)
     f = np.dot(v2, w0)
-    denom = a*c - b*b
+    denom = a * c - b * b
     if abs(denom) < 1e-6:
         s = 0.0
         t = 0.0
     else:
-        s = (b*f - c*e) / denom
-        t = (a*f - b*e) / denom
+        s = (b * f - c * e) / denom
+        t = (a * f - b * e) / denom
 
     p1 = o1 + s * v1
     p2 = o2 + t * v2
@@ -129,8 +137,12 @@ def angle_between_3d(a, b, c):
 
 
 def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
-    """Compute common joint angles (elbows) from stereo pose results.
-    Returns dict with keys like 'left_elbow', 'right_elbow' with angles in degrees.
+    """
+    obliczanie katow w stawach w 3d. zwraca slowmiki:
+    right/left_elbow (zgiecie reki katy od 0 do 180)
+    oraz
+    right/left_shoulder_swing (wychylenie lokcia od tulowia)
+
     """
     pts3d = reconstruct_3d(results_left, results_right, focal=focal, baseline=baseline)
     angles = {}
@@ -141,49 +153,100 @@ def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
     R_SHOULDER = mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value
     R_ELBOW = mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value
     R_WRIST = mp.solutions.pose.PoseLandmark.RIGHT_WRIST.value
-
-    # Elbow angles (shoulder - elbow - wrist)
-    if L_SHOULDER in pts3d and L_ELBOW in pts3d and L_WRIST in pts3d:
-        angles['left_elbow'] = angle_between_3d(pts3d[L_SHOULDER], pts3d[L_ELBOW], pts3d[L_WRIST])
-    else:
-        angles['left_elbow'] = None
-
-    if R_SHOULDER in pts3d and R_ELBOW in pts3d and R_WRIST in pts3d:
-        angles['right_elbow'] = angle_between_3d(pts3d[R_SHOULDER], pts3d[R_ELBOW], pts3d[R_WRIST])
-    else:
-        angles['right_elbow'] = None
-
-    # Shoulder angles: measure angle at shoulder between torso-up vector and upper-arm (neck/torso - shoulder - elbow)
-    angles['left_shoulder'] = None
-    angles['right_shoulder'] = None
-
-    # Need a torso-up reference point: prefer midpoint between shoulders (neck proxy), fallback to hip
     L_HIP = mp.solutions.pose.PoseLandmark.LEFT_HIP.value
     R_HIP = mp.solutions.pose.PoseLandmark.RIGHT_HIP.value
+    # TEST na bujanie biodrami przod tyl
+    L_KNEE = mp.solutions.pose.PoseLandmark.LEFT_KNEE.value
+    R_KNEE = mp.solutions.pose.PoseLandmark.RIGHT_KNEE.value
 
-    neck = None
-    if L_SHOULDER in pts3d and R_SHOULDER in pts3d:
-        neck = (pts3d[L_SHOULDER] + pts3d[R_SHOULDER]) / 2.0
+    # katy w łokciu (shoulder - elbow - wrist)
+    if L_SHOULDER in pts3d and L_ELBOW in pts3d and L_WRIST in pts3d:
+        angles["left_elbow"] = angle_between_3d(
+            pts3d[L_SHOULDER], pts3d[L_ELBOW], pts3d[L_WRIST]
+        )
+    else:
+        angles["left_elbow"] = None
 
-    # Left shoulder angle: neck(or left hip) - left_shoulder - left_elbow
-    if L_SHOULDER in pts3d and L_ELBOW in pts3d:
-        ref = None
-        if neck is not None:
-            ref = neck
-        elif L_HIP in pts3d:
-            ref = pts3d[L_HIP]
-        if ref is not None:
-            angles['left_shoulder'] = angle_between_3d(ref, pts3d[L_SHOULDER], pts3d[L_ELBOW])
+    if R_SHOULDER in pts3d and R_ELBOW in pts3d and R_WRIST in pts3d:
+        angles["right_elbow"] = angle_between_3d(
+            pts3d[R_SHOULDER], pts3d[R_ELBOW], pts3d[R_WRIST]
+        )
+    else:
+        angles["right_elbow"] = None
 
-    # Right shoulder angle: neck(or right hip) - right_shoulder - right_elbow
-    if R_SHOULDER in pts3d and R_ELBOW in pts3d:
-        ref = None
-        if neck is not None:
-            ref = neck
-        elif R_HIP in pts3d:
-            ref = pts3d[R_HIP]
-        if ref is not None:
-            angles['right_shoulder'] = angle_between_3d(ref, pts3d[R_SHOULDER], pts3d[R_ELBOW])
+    # ----- nowe
+    # jak bardzo ramie odchyla sie od pionu tulowia
+    # kat barkowy (kat miedzy biodrem, barkiem a lokciem)
+    if L_HIP in pts3d and L_SHOULDER in pts3d and L_ELBOW in pts3d:
+        angles["left_shoulder_swing"] = angle_between_3d(
+            pts3d[L_HIP], pts3d[L_SHOULDER], pts3d[L_ELBOW]
+        )
+    else:
+        angles["left_shoulder_swing"] = None
+
+    if R_HIP in pts3d and R_SHOULDER in pts3d and R_ELBOW in pts3d:
+        angles["right_shoulder_swing"] = angle_between_3d(
+            pts3d[R_HIP], pts3d[R_SHOULDER], pts3d[R_ELBOW]
+        )
+    else:
+        angles["right_shoulder_swing"] = None
+
+    # kat biodrowy (wykrywanie bujania sie przod tyl)
+    # (bark biodro kolano)
+    # prosto 180 stopni
+    # pochylenie to mniej niz 180
+    if L_SHOULDER in pts3d and L_HIP in pts3d and L_KNEE in pts3d:
+        angles["left_hip_angle"] = angle_between_3d(
+            pts3d[L_SHOULDER], pts3d[L_HIP], pts3d[L_KNEE]
+        )
+    else:
+        angles["left_hip_angle"] = None
+
+    if R_SHOULDER in pts3d and R_HIP in pts3d and R_KNEE in pts3d:
+        angles["right_hip_angle"] = angle_between_3d(
+            pts3d[R_SHOULDER], pts3d[R_HIP], pts3d[R_KNEE]
+        )
+    else:
+        angles["right_hip_angle"] = None
+
+    # ------ nowe
+
+    # # (szyja, bark, lokiec)
+    # # jak daleko jest lokiec od szyi
+    # # nw czy nadal to uzywane bedzie, zostawiam zeby nie krzyczalo przy wyswietlaniu
+    # # najwyzej sie usunie xd
+    # # narazie komentuje to!
+
+    # angles["left_shoulder"] = None
+    # angles["right_shoulder"] = None
+
+    # neck = None
+    # if L_SHOULDER in pts3d and R_SHOULDER in pts3d:
+    #     neck = (pts3d[L_SHOULDER] + pts3d[R_SHOULDER]) / 2.0
+
+    # # Left shoulder angle: neck(or left hip) - left_shoulder - left_elbow
+    # if L_SHOULDER in pts3d and L_ELBOW in pts3d:
+    #     ref = None
+    #     if neck is not None:
+    #         ref = neck
+    #     elif L_HIP in pts3d:
+    #         ref = pts3d[L_HIP]
+    #     if ref is not None:
+    #         angles["left_shoulder"] = angle_between_3d(
+    #             ref, pts3d[L_SHOULDER], pts3d[L_ELBOW]
+    #         )
+
+    # # Right shoulder angle: neck(or right hip) - right_shoulder - right_elbow
+    # if R_SHOULDER in pts3d and R_ELBOW in pts3d:
+    #     ref = None
+    #     if neck is not None:
+    #         ref = neck
+    #     elif R_HIP in pts3d:
+    #         ref = pts3d[R_HIP]
+    #     if ref is not None:
+    #         angles["right_shoulder"] = angle_between_3d(
+    #             ref, pts3d[R_SHOULDER], pts3d[R_ELBOW]
+    #         )
 
     return angles
 
@@ -194,34 +257,183 @@ def draw_angles_on_frames(frame_left, frame_right, results_left, results_right, 
     h1, w1 = frame_left.shape[:2]
     h2, w2 = frame_right.shape[:2]
 
-    # helper to draw a value near a landmark on a frame
-    def _draw_if(frame, lm_list, landmark_idx, x_scale, y_scale, val, prefix):
+    COLOR_ELBOW = (0, 255, 255)  # zolty
+    COLOR_SWING = (0, 140, 255)  # pomarancz
+    COLOR_HIP = (255, 0, 255)  # fiolet
+
+    def draw_styled_text(img, text, x, y, color):
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        scale = 0.7
+        thickness = 2
+
+        # czarny outline
+        cv2.putText(img, text, (x, y), font, scale, (0, 0, 0), thickness + 3)
+        # wartosci katow
+        cv2.putText(img, text, (x, y), font, scale, color, thickness)
+
+    # pomocnicza do pokazania katow
+    def _draw_if(
+        frame, lm_list, landmark_idx, x_scale, y_scale, val, prefix, color, y_offset=0
+    ):
         if lm_list is None:
             return
         if landmark_idx is None or landmark_idx >= len(lm_list):
             return
+        # pobranie punktu
         x = int(lm_list[landmark_idx].x * x_scale)
         y = int(lm_list[landmark_idx].y * y_scale)
         if val is not None:
-            # Use ASCII 'deg' because OpenCV Hershey fonts don't render the Unicode degree symbol (°)
-            cv2.putText(frame, f"{prefix}:{int(val)} deg", (x-25, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+            text = f"{prefix}:{int(val)}"
+            draw_styled_text(frame, text, x - 30, y + y_offset, color)
 
-    # Left frame: use results_left landmarks to place texts
+    # lewa kamerka (laptop)
     if results_left and results_left.pose_landmarks:
         lm_l = results_left.pose_landmarks.landmark
-        # left elbow
-        _draw_if(frame_left, lm_l, mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value, w1, h1, angles.get('left_elbow'), 'Lel')
-        # right elbow
-        _draw_if(frame_left, lm_l, mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value, w1, h1, angles.get('right_elbow'), 'Rel')
-        # left shoulder
-        _draw_if(frame_left, lm_l, mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value, w1, h1, angles.get('left_shoulder'), 'Lsh')
-        # right shoulder
-        _draw_if(frame_left, lm_l, mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value, w1, h1, angles.get('right_shoulder'), 'Rsh')
 
-    # Right frame: use results_right landmarks to place texts
+        # barki
+        _draw_if(
+            frame_left,
+            lm_l,
+            mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value,
+            w1,
+            h1,
+            angles.get("left_shoulder_swing"),
+            "Lsw",
+            COLOR_SWING,
+            y_offset=-40,
+        )
+        _draw_if(
+            frame_left,
+            lm_l,
+            mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value,
+            w1,
+            h1,
+            angles.get("right_shoulder_swing"),
+            "Rsw",
+            COLOR_SWING,
+            y_offset=-40,
+        )
+
+        # lokcie
+        _draw_if(
+            frame_left,
+            lm_l,
+            mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value,
+            w1,
+            h1,
+            angles.get("left_elbow"),
+            "Lel",
+            COLOR_ELBOW,
+            y_offset=10,
+        )
+        _draw_if(
+            frame_left,
+            lm_l,
+            mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value,
+            w1,
+            h1,
+            angles.get("right_elbow"),
+            "Rel",
+            COLOR_ELBOW,
+            y_offset=10,
+        )
+
+        # biodra
+        _draw_if(
+            frame_left,
+            lm_l,
+            mp.solutions.pose.PoseLandmark.LEFT_HIP.value,
+            w1,
+            h1,
+            angles.get("left_hip_angle"),
+            "Lhip",
+            COLOR_HIP,
+            y_offset=50,
+        )
+        _draw_if(
+            frame_left,
+            lm_l,
+            mp.solutions.pose.PoseLandmark.RIGHT_HIP.value,
+            w1,
+            h1,
+            angles.get("right_hip_angle"),
+            "Rhip",
+            COLOR_HIP,
+            y_offset=50,
+        )
+
+    # prawa kamerka (telefon)
     if results_right and results_right.pose_landmarks:
         lm_r = results_right.pose_landmarks.landmark
-        _draw_if(frame_right, lm_r, mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value, w2, h2, angles.get('left_elbow'), 'Lel')
-        _draw_if(frame_right, lm_r, mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value, w2, h2, angles.get('right_elbow'), 'Rel')
-        _draw_if(frame_right, lm_r, mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value, w2, h2, angles.get('left_shoulder'), 'Lsh')
-        _draw_if(frame_right, lm_r, mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value, w2, h2, angles.get('right_shoulder'), 'Rsh')
+
+        # barki
+        _draw_if(
+            frame_right,
+            lm_r,
+            mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value,
+            w2,
+            h2,
+            angles.get("left_shoulder_swing"),
+            "Lsw",
+            COLOR_SWING,
+            y_offset=-40,
+        )
+        _draw_if(
+            frame_right,
+            lm_r,
+            mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value,
+            w2,
+            h2,
+            angles.get("right_shoulder_swing"),
+            "Rsw",
+            COLOR_SWING,
+            y_offset=-40,
+        )
+
+        # łokcie
+        _draw_if(
+            frame_right,
+            lm_r,
+            mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value,
+            w2,
+            h2,
+            angles.get("left_elbow"),
+            "Lel",
+            COLOR_ELBOW,
+            y_offset=10,
+        )
+        _draw_if(
+            frame_right,
+            lm_r,
+            mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value,
+            w2,
+            h2,
+            angles.get("right_elbow"),
+            "Rel",
+            COLOR_ELBOW,
+            y_offset=10,
+        )
+
+        # biodra
+        _draw_if(
+            frame_right,
+            lm_r,
+            mp.solutions.pose.PoseLandmark.LEFT_HIP.value,
+            w2,
+            h2,
+            angles.get("left_hip_angle"),
+            "Lhip",
+            COLOR_HIP,
+            y_offset=50,
+        )
+        _draw_if(
+            frame_right,
+            lm_r,
+            mp.solutions.pose.PoseLandmark.RIGHT_HIP.value,
+            w2,
+            h2,
+            angles.get("right_hip_angle"),
+            "Rhip",
+            COLOR_HIP,
+            y_offset=50,
+        )
