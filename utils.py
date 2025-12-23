@@ -1,28 +1,5 @@
-import cv2
-import numpy as np
-import threading
-import mediapipe as mp
+from settings import *
 
-
-class IPStream:
-    def __init__(self, url):
-        self.cap = cv2.VideoCapture(url)
-        self.frame = np.zeros((480, 640, 3), np.uint8)
-        self.running = True
-        threading.Thread(target=self.update, daemon=True).start()
-
-    def update(self):
-        while self.running:
-            ret, img = self.cap.read()
-            if ret:
-                self.frame = img
-
-    def read(self):
-        return True, self.frame
-
-    def release(self):
-        self.running = False
-        self.cap.release()
 
 
 def detect_and_draw(frame, model):
@@ -437,3 +414,22 @@ def draw_angles_on_frames(frame_left, frame_right, results_left, results_right, 
             COLOR_HIP,
             y_offset=50,
         )
+
+def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
+    r = sr.Recognizer()
+    mic = sr.Microphone(device_index=1, sample_rate=48000)
+    try:
+        with mic as source:
+            print("Listening for exercise name (say 'barki' or 'biceps')...")
+            audio = r.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
+        text = r.recognize_google(audio, show_all=False,language='pl-PL')
+        if not text:
+            return None
+        text = text.lower()
+        if "barki" in text:
+            return "barki"
+        if "biceps" in text:
+            return "biceps"
+    except Exception as e:
+        pass
+    return None
