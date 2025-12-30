@@ -84,3 +84,53 @@ class VoiceThread:
     
     def stop(self):
         self.running = False
+
+
+class Trainer:
+    def __init__(self):
+        # Lewa
+        self.reps_left = 0
+        self.stage_left = "down"
+        # Prawa
+        self.reps_right = 0
+        self.stage_right = "down"
+        # Komunikaty
+        self.feedback = []
+
+    def process_biceps(self, angles):
+        self.feedback = []
+
+        l_angle = angles.get("left_elbow")
+        l_swing = angles.get("left_shoulder_swing")
+
+        if l_angle is not None:
+            if l_angle > 160:
+                self.stage_left = "down"
+            if l_angle < 50 and self.stage_left == "down":
+                self.stage_left = "up"
+                self.reps_left += 1
+
+            # Korekta
+            if l_swing is not None and l_swing > 25:
+                self.feedback.append("LEWA: Łokieć przy ciele!")
+
+        r_angle = angles.get("right_elbow")
+        r_swing = angles.get("right_shoulder_swing")
+
+        if r_angle is not None:
+            if r_angle > 160:
+                self.stage_right = "down"
+            if r_angle < 50 and self.stage_right == "down":
+                self.stage_right = "up"
+                self.reps_right += 1
+
+            # Korekta
+            if r_swing is not None and r_swing > 25:
+                self.feedback.append("PRAWA: Łokieć przy ciele!")
+
+    def reset(self):
+        self.reps_left = 0
+        self.reps_right = 0
+        self.stage_left = "down"
+        self.stage_right = "down"
+        self.feedback = []
