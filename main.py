@@ -10,7 +10,7 @@ from utils import *
 pygame.init()
 init_fonts()
 screen = pygame.display.set_mode((WIN_W, WIN_H))
-pygame.display.set_caption("Cyber Trener - Dual Cam System")
+pygame.display.set_caption("Cyber Trener - System Analizy Ruchu")
 clock = pygame.time.Clock()
 
 mp_pose = mp.solutions.pose
@@ -39,6 +39,7 @@ while running:
 
     ret1, frame1 = cap_local.read()
     ret2, frame2 = cam_ip.read()
+    frame2 = cv2.rotate(frame2, cv2.ROTATE_90_CLOCKWISE)
 
     # Obsługa błędów kamer (pusta klatka)
     if not ret1: frame1 = np.zeros((CAM_H, CAM_W, 3), np.uint8)

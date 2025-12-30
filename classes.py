@@ -104,7 +104,7 @@ class Trainer:
         l_swing = angles.get("left_shoulder_swing")
 
         if l_angle is not None:
-            if l_angle > 160:
+            if l_angle > 150:
                 self.stage_left = "down"
             if l_angle < 50 and self.stage_left == "down":
                 self.stage_left = "up"
@@ -118,7 +118,7 @@ class Trainer:
         r_swing = angles.get("right_shoulder_swing")
 
         if r_angle is not None:
-            if r_angle > 160:
+            if r_angle > 150:
                 self.stage_right = "down"
             if r_angle < 50 and self.stage_right == "down":
                 self.stage_right = "up"

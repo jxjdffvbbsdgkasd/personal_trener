@@ -29,9 +29,19 @@ def draw_dashboard(screen, exercise_name, is_running, trainer, angles):
     pygame.draw.rect(screen, COLOR_BG, (0, y_start, WIN_W, DASH_H))
     pygame.draw.line(screen, (80, 80, 80), (0, y_start), (WIN_W, y_start), 2)
 
-    center_x = WIN_W // 2
-    left_x = WIN_W // 4
-    right_x = (WIN_W // 4) * 3
+    center_x = WIN_W // 2    
+    # lewa
+    left_center_x = WIN_W // 4
+    
+    # prawa
+    right_center_x = (WIN_W // 4) * 3
+
+    box_width = 320
+    box_height = DASH_H - 40
+    
+    left_box_x = left_center_x - (box_width // 2)
+    right_box_x = right_center_x - (box_width // 2)
+    box_y = y_start + 20
 
     draw_text_centered(screen, f"Ćwiczenie: {exercise_name.upper()}", font_med, COLOR_ACCENT, center_x, y_start + 30)
 
@@ -50,22 +60,22 @@ def draw_dashboard(screen, exercise_name, is_running, trainer, angles):
         draw_text_centered(screen, "Technika Prawidłowa", font_small, (100, 100, 100), center_x, y_start + 150)
 
     # lewa
-    pygame.draw.rect(screen, COLOR_PANEL, (20, y_start + 20, left_x + 50, DASH_H - 40), border_radius=15)
-    draw_text_centered(screen, "LEWA RĘKA", font_med, COLOR_TEXT, left_x, y_start + 50)
-    draw_text_centered(screen, str(trainer.reps_left), font_big, COLOR_ACCENT, left_x, y_start + 110)
-    draw_text_centered(screen, "powtórzeń", font_small, (150, 150, 150), left_x, y_start + 150)
+    pygame.draw.rect(screen, COLOR_PANEL, (left_box_x, box_y, box_width, box_height), border_radius=15)
+    draw_text_centered(screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50)
+    draw_text_centered(screen, str(trainer.reps_left), font_big, COLOR_ACCENT, left_center_x, y_start + 110)
+    draw_text_centered(screen, "powtórzeń", font_small, (150,150,150), left_center_x, y_start + 150)
     ang_l = angles.get("left_elbow")
     val_l = f"{int(ang_l)}°" if ang_l else "--"
-    draw_text_centered(screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_x, y_start + 190)
+    draw_text_centered(screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_center_x, y_start + 190)
 
     # prawa
-    pygame.draw.rect(screen, COLOR_PANEL, (right_x - 100, y_start + 20, left_x + 50, DASH_H - 40), border_radius=15)
-    draw_text_centered(screen, "PRAWA RĘKA", font_med, COLOR_TEXT, right_x, y_start + 50)
-    draw_text_centered(screen, str(trainer.reps_right), font_big, COLOR_ACCENT, right_x, y_start + 110)
-    draw_text_centered(screen, "powtórzeń", font_small, (150, 150, 150), right_x, y_start + 150)
+    pygame.draw.rect(screen, COLOR_PANEL, (right_box_x, box_y, box_width, box_height), border_radius=15)
+    draw_text_centered(screen, "Prawa Ręka", font_med, COLOR_TEXT, right_center_x, y_start + 50)
+    draw_text_centered(screen, str(trainer.reps_right), font_big, COLOR_ACCENT, right_center_x, y_start + 110)
+    draw_text_centered(screen, "powtórzeń", font_small, (150, 150, 150), right_center_x, y_start + 150)
     ang_r = angles.get("right_elbow")
     val_r = f"{int(ang_r)}°" if ang_r else "--"
-    draw_text_centered(screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_x, y_start + 190)
+    draw_text_centered(screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190)
 
 def detect_and_draw(frame, model):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
