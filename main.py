@@ -1,8 +1,3 @@
-import pygame
-import cv2
-import numpy as np
-import mediapipe as mp
-import difflib
 from settings import *
 from classes import *
 from utils import *
@@ -16,16 +11,18 @@ clock = pygame.time.Clock()
 mp_pose = mp.solutions.pose
 pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-
+ 
 cap_local = cv2.VideoCapture(local_idx)
 cam_ip = IPStream(ip_url)
 
 print("Wybierz ćwiczenie (biceps albo barki)")
 # exercise_type = select_exercise_via_voice() # Docelowo to narazie na sztywno jest biceps
-exercise_type = "biceps"
+exercise_type = "barki"
 print(f"-> Wybrano: {exercise_type}")
 
 voice_control = VoiceThread()
+voice_control.started = True # start na sztywno do testow
+
 trainer = Trainer()
 
 running = True
@@ -39,7 +36,6 @@ while running:
 
     ret1, frame1 = cap_local.read()
     ret2, frame2 = cam_ip.read()
-    frame2 = cv2.rotate(frame2, cv2.ROTATE_90_CLOCKWISE)
 
     # Obsługa błędów kamer (pusta klatka)
     if not ret1: frame1 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
@@ -51,12 +47,13 @@ while running:
     frame1, results1 = detect_and_draw(frame1, pose_local)
     frame2, results2 = detect_and_draw(frame2, pose_ip)
 
-    angles = compute_angles_3d(results1, results2, focal=1.0, baseline=0.6)
-
     if voice_control.started:
         if exercise_type == "biceps":
+            angles = compute_angles_3d_biceps(results1, results2, focal=1.0, baseline=0.6)
             trainer.process_biceps(angles)
-        # Tutaj elif do barkow
+        elif exercise_type == "barki":
+            angles = compute_angles_3d_shoulders(results1, results2, focal=1.0, baseline=0.6)
+            trainer.process_shoulder_press(angles)
 
     screen.fill(COLOR_BG)
 
@@ -69,7 +66,7 @@ while running:
     draw_dashboard(screen, exercise_type, voice_control.started, trainer, angles)
 
     pygame.display.flip()
-    clock.tick(30)
+    clock.tick(FPS)
 
 voice_control.stop()
 cap_local.release()

@@ -13,7 +13,8 @@ def init_fonts():
 def cv2_to_pygame(frame, width, height):
     frame = cv2.resize(frame, (width, height))
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame = np.rot90(frame)
+    # Zamieniamy osie (height,width,3) -> (width,height,3) bez obracania/odbicia
+    frame = np.transpose(frame, (1, 0, 2))
     return pygame.surfarray.make_surface(frame)
 
 def draw_text_centered(surface, text, font, color, center_x, center_y):
@@ -188,7 +189,7 @@ def angle_between_3d(a, b, c):
     return float(np.degrees(np.arccos(cosang)))
 
 
-def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
+def compute_angles_3d_biceps(results_left, results_right, focal=1.0, baseline=0.6):
     """
     obliczanie katow w stawach w 3d. zwraca slowmiki:
     right/left_elbow (zgiecie reki katy od 0 do 180)
@@ -261,7 +262,24 @@ def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
     else:
         angles["right_hip_angle"] = None
 
+    return angles
+
+def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline=0.6):
     # ------ nowe
+    pts3d = reconstruct_3d(results_left, results_right, focal=focal, baseline=baseline)
+    angles = {}
+    # Use MediaPipe landmark indices
+    L_SHOULDER = mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value
+    L_ELBOW = mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value
+    L_WRIST = mp.solutions.pose.PoseLandmark.LEFT_WRIST.value
+    R_SHOULDER = mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value
+    R_ELBOW = mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value
+    R_WRIST = mp.solutions.pose.PoseLandmark.RIGHT_WRIST.value
+    L_HIP = mp.solutions.pose.PoseLandmark.LEFT_HIP.value
+    R_HIP = mp.solutions.pose.PoseLandmark.RIGHT_HIP.value
+    # TEST na bujanie biodrami przod tyl
+    L_KNEE = mp.solutions.pose.PoseLandmark.LEFT_KNEE.value
+    R_KNEE = mp.solutions.pose.PoseLandmark.RIGHT_KNEE.value
 
     # # (szyja, bark, lokiec)
     # # jak daleko jest lokiec od szyi
@@ -269,36 +287,37 @@ def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
     # # najwyzej sie usunie xd
     # # narazie komentuje to!
 
-    # angles["left_shoulder"] = None
-    # angles["right_shoulder"] = None
+    # Compute approximate shoulder angles (reference: neck midpoint or hip)
+    angles["left_shoulder"] = None
+    angles["right_shoulder"] = None
 
-    # neck = None
-    # if L_SHOULDER in pts3d and R_SHOULDER in pts3d:
-    #     neck = (pts3d[L_SHOULDER] + pts3d[R_SHOULDER]) / 2.0
+    neck = None
+    if L_SHOULDER in pts3d and R_SHOULDER in pts3d:
+        neck = (pts3d[L_SHOULDER] + pts3d[R_SHOULDER]) / 2.0
 
-    # # Left shoulder angle: neck(or left hip) - left_shoulder - left_elbow
-    # if L_SHOULDER in pts3d and L_ELBOW in pts3d:
-    #     ref = None
-    #     if neck is not None:
-    #         ref = neck
-    #     elif L_HIP in pts3d:
-    #         ref = pts3d[L_HIP]
-    #     if ref is not None:
-    #         angles["left_shoulder"] = angle_between_3d(
-    #             ref, pts3d[L_SHOULDER], pts3d[L_ELBOW]
-    #         )
+    # Left shoulder angle: reference (neck or left hip) - left_shoulder - left_elbow
+    if L_SHOULDER in pts3d and L_ELBOW in pts3d:
+        ref = None
+        if neck is not None:
+            ref = neck
+        elif L_HIP in pts3d:
+            ref = pts3d[L_HIP]
+        if ref is not None:
+            angles["left_shoulder"] = angle_between_3d(
+                ref, pts3d[L_SHOULDER], pts3d[L_ELBOW]
+            )
 
-    # # Right shoulder angle: neck(or right hip) - right_shoulder - right_elbow
-    # if R_SHOULDER in pts3d and R_ELBOW in pts3d:
-    #     ref = None
-    #     if neck is not None:
-    #         ref = neck
-    #     elif R_HIP in pts3d:
-    #         ref = pts3d[R_HIP]
-    #     if ref is not None:
-    #         angles["right_shoulder"] = angle_between_3d(
-    #             ref, pts3d[R_SHOULDER], pts3d[R_ELBOW]
-    #         )
+    # Right shoulder angle: reference (neck or right hip) - right_shoulder - right_elbow
+    if R_SHOULDER in pts3d and R_ELBOW in pts3d:
+        ref = None
+        if neck is not None:
+            ref = neck
+        elif R_HIP in pts3d:
+            ref = pts3d[R_HIP]
+        if ref is not None:
+            angles["right_shoulder"] = angle_between_3d(
+                ref, pts3d[R_SHOULDER], pts3d[R_ELBOW]
+            )
 
     return angles
 

@@ -111,8 +111,8 @@ class Trainer:
                 self.reps_left += 1
 
             # Korekta
-            if l_swing is not None and l_swing > 25:
-                self.feedback.append("LEWA: Łokieć przy ciele!")
+            if l_swing is not None and l_swing > 35:
+                self.feedback.append("LEWA: Łokieć przy ciele !")
 
         r_angle = angles.get("right_elbow")
         r_swing = angles.get("right_shoulder_swing")
@@ -125,8 +125,39 @@ class Trainer:
                 self.reps_right += 1
 
             # Korekta
+            if r_swing is not None and r_swing > 35:
+                self.feedback.append("PRAWA: Łokieć przy ciele !")
+
+    def process_shoulder_press(self, angles):
+        self.feedback = []
+        l_angle = angles.get("left_shoulder")
+        l_swing = angles.get("left_shoulder_swing")
+        r_angle = angles.get("right_shoulder")
+        r_swing = angles.get("right_shoulder_swing")
+
+        if l_angle is not None:
+            if l_angle > 140:
+                self.stage_left = "down"
+            if l_angle < 70 and self.stage_left == "down":
+                self.stage_left = "up"
+                self.reps_left += 1
+
+            # Korekta (zbyt duże odchylenie ramienia od tułowia)
+            if l_swing is not None and l_swing > 25:
+                self.feedback.append("LEWA: Ramiona przy ciele !")
+
+        if r_angle is not None:
+            if r_angle > 140:
+                self.stage_right = "down"
+            if r_angle < 70 and self.stage_right == "down":
+                self.stage_right = "up"
+                self.reps_right += 1
+
+            # Korekta (zbyt duże odchylenie ramienia od tułowia)
             if r_swing is not None and r_swing > 25:
-                self.feedback.append("PRAWA: Łokieć przy ciele!")
+                self.feedback.append("PRAWA: Ramiona przy ciele !")
+        pass
+
 
     def reset(self):
         self.reps_left = 0
