@@ -128,35 +128,59 @@ class Trainer:
             if r_swing is not None and r_swing > 35:
                 self.feedback.append("PRAWA: Łokieć przy ciele !")
 
-    def process_shoulder_press(self, angles):
-        self.feedback = []
-        l_angle = angles.get("left_shoulder")
-        l_swing = angles.get("left_shoulder_swing")
-        r_angle = angles.get("right_shoulder")
-        r_swing = angles.get("right_shoulder_swing")
+    # classes.py (wewnątrz klasy TrainerLogic)
 
-        if l_angle is not None:
-            if l_angle > 140:
+    def process_shoulders(self, angles):
+        """Logika dla wyciskania na barki (Overhead Press)."""
+        self.feedback = [] 
+        
+        # --- LEWA RĘKA ---
+        l_lift = angles.get("left_shoulder_lift") # Kąt wznosu (względem tułowia)
+        l_elbow = angles.get("left_elbow")        # Kąt wyprostu ręki
+        
+        if l_lift is not None and l_elbow is not None:
+            # 1. Wykrywanie pozycji DOLNEJ (Start wyciskania)
+            # ZMIANA: Aby uznać start, ręka musi być na wysokości barków LUB niżej,
+            # ALE KLUCZOWE: Łokieć musi być mocno zgięty (< 110 stopni).
+            # Przy wznosach łokieć jest prosty (>150), więc ten warunek nie przejdzie.
+            if l_lift < 120 and l_elbow < 110:
                 self.stage_left = "down"
-            if l_angle < 70 and self.stage_left == "down":
+            
+            # Opcjonalnie: Wykrywanie oszukiwania (robienie wznosów zamiast wyciskania)
+            # Jeśli ręka jest poziomo (ok 90 stopni), ale łokieć jest prosty -> Ostrzeżenie
+            if 70 < l_lift < 110 and l_elbow > 140:
+                self.feedback.append("LEWA: To nie wznosy! Zegnij łokcie.")
+
+            # 2. Wykrywanie pozycji GÓRNEJ (Koniec ruchu)
+            # Ręka wysoko (>150) i wyprostowana (>145)
+            # Liczymy tylko jeśli wcześniej zaliczyliśmy poprawną fazę "down" (zgięcie)
+            if l_lift > 150 and l_elbow > 145 and self.stage_left == "down":
                 self.stage_left = "up"
                 self.reps_left += 1
+            
+            # Korekta: Niepełny wyprost na górze
+            if l_lift > 155 and l_elbow < 130:
+                self.feedback.append("LEWA: Wyprostuj rękę do końca!")
 
-            # Korekta (zbyt duże odchylenie ramienia od tułowia)
-            if l_swing is not None and l_swing > 25:
-                self.feedback.append("LEWA: Ramiona przy ciele !")
-
-        if r_angle is not None:
-            if r_angle > 140:
+        # prawa
+        r_lift = angles.get("right_shoulder_lift")
+        r_elbow = angles.get("right_elbow")
+        
+        if r_lift is not None and r_elbow is not None:
+            # Rygorystyczny warunek zgięcia łokcia dla startu
+            if r_lift < 120 and r_elbow < 110:
                 self.stage_right = "down"
-            if r_angle < 70 and self.stage_right == "down":
+            
+            # Ostrzeżenie przed wznosami
+            if 70 < r_lift < 110 and r_elbow > 140:
+                self.feedback.append("PRAWA: To nie wznosy! Zegnij łokcie.")
+
+            if r_lift > 150 and r_elbow > 145 and self.stage_right == "down":
                 self.stage_right = "up"
                 self.reps_right += 1
-
-            # Korekta (zbyt duże odchylenie ramienia od tułowia)
-            if r_swing is not None and r_swing > 25:
-                self.feedback.append("PRAWA: Ramiona przy ciele !")
-        pass
+            
+            if r_lift > 155 and r_elbow < 130:
+                self.feedback.append("PRAWA: Wyprostuj rękę do końca!")
 
 
     def reset(self):

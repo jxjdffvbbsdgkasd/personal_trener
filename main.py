@@ -53,7 +53,7 @@ while running:
             trainer.process_biceps(angles)
         elif exercise_type == "barki":
             angles = compute_angles_3d_shoulders(results1, results2, focal=1.0, baseline=0.6)
-            trainer.process_shoulder_press(angles)
+            trainer.process_shoulders(angles)
 
     screen.fill(COLOR_BG)
 

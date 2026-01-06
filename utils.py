@@ -265,59 +265,31 @@ def compute_angles_3d_biceps(results_left, results_right, focal=1.0, baseline=0.
     return angles
 
 def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline=0.6):
-    # ------ nowe
+    """
+    Liczy kąty pod wyciskanie na barki (Overhead Press).
+    Kluczowy jest kąt: Biodro-Bark-Łokieć (jak wysoko jest ramię).
+    """
     pts3d = reconstruct_3d(results_left, results_right, focal=focal, baseline=baseline)
     angles = {}
-    # Use MediaPipe landmark indices
-    L_SHOULDER = mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value
-    L_ELBOW = mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value
-    L_WRIST = mp.solutions.pose.PoseLandmark.LEFT_WRIST.value
-    R_SHOULDER = mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value
-    R_ELBOW = mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value
-    R_WRIST = mp.solutions.pose.PoseLandmark.RIGHT_WRIST.value
-    L_HIP = mp.solutions.pose.PoseLandmark.LEFT_HIP.value
-    R_HIP = mp.solutions.pose.PoseLandmark.RIGHT_HIP.value
-    # TEST na bujanie biodrami przod tyl
-    L_KNEE = mp.solutions.pose.PoseLandmark.LEFT_KNEE.value
-    R_KNEE = mp.solutions.pose.PoseLandmark.RIGHT_KNEE.value
+    
+    # Enumy MediaPipe
+    Pose = mp.solutions.pose.PoseLandmark
+    
+    # Funkcja pomocnicza do bezpiecznego liczenia
+    def get_ang(p1, p2, p3):
+        if p1.value in pts3d and p2.value in pts3d and p3.value in pts3d:
+            return angle_between_3d(pts3d[p1.value], pts3d[p2.value], pts3d[p3.value])
+        return None
 
-    # # (szyja, bark, lokiec)
-    # # jak daleko jest lokiec od szyi
-    # # nw czy nadal to uzywane bedzie, zostawiam zeby nie krzyczalo przy wyswietlaniu
-    # # najwyzej sie usunie xd
-    # # narazie komentuje to!
+    # 1. KĄT WZNOSU RAMIENIA (Biodro -> Bark -> Łokieć)
+    # To nam mówi, czy ręka jest na górze (ok 170-180) czy na dole (ok 90)
+    angles["left_shoulder_lift"] = get_ang(Pose.LEFT_HIP, Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW)
+    angles["right_shoulder_lift"] = get_ang(Pose.RIGHT_HIP, Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW)
 
-    # Compute approximate shoulder angles (reference: neck midpoint or hip)
-    angles["left_shoulder"] = None
-    angles["right_shoulder"] = None
-
-    neck = None
-    if L_SHOULDER in pts3d and R_SHOULDER in pts3d:
-        neck = (pts3d[L_SHOULDER] + pts3d[R_SHOULDER]) / 2.0
-
-    # Left shoulder angle: reference (neck or left hip) - left_shoulder - left_elbow
-    if L_SHOULDER in pts3d and L_ELBOW in pts3d:
-        ref = None
-        if neck is not None:
-            ref = neck
-        elif L_HIP in pts3d:
-            ref = pts3d[L_HIP]
-        if ref is not None:
-            angles["left_shoulder"] = angle_between_3d(
-                ref, pts3d[L_SHOULDER], pts3d[L_ELBOW]
-            )
-
-    # Right shoulder angle: reference (neck or right hip) - right_shoulder - right_elbow
-    if R_SHOULDER in pts3d and R_ELBOW in pts3d:
-        ref = None
-        if neck is not None:
-            ref = neck
-        elif R_HIP in pts3d:
-            ref = pts3d[R_HIP]
-        if ref is not None:
-            angles["right_shoulder"] = angle_between_3d(
-                ref, pts3d[R_SHOULDER], pts3d[R_ELBOW]
-            )
+    # 2. KĄT WYPROSTU W ŁOKCIU (Bark -> Łokieć -> Nadgarstek)
+    # To nam mówi, czy "dopchnęliśmy" ruch (wyprost > 160)
+    angles["left_elbow"] = get_ang(Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW, Pose.LEFT_WRIST)
+    angles["right_elbow"] = get_ang(Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW, Pose.RIGHT_WRIST)
 
     return angles
 
