@@ -1,6 +1,82 @@
 from settings import *
 
+font_big = None
+font_med = None
+font_small = None
 
+def init_fonts():
+    global font_big, font_med, font_small
+    font_big = pygame.font.SysFont("arial", 60, bold=True)
+    font_med = pygame.font.SysFont("arial", 30, bold=True)
+    font_small = pygame.font.SysFont("consolas", 20)
+
+def cv2_to_pygame(frame, width, height):
+    frame = cv2.resize(frame, (width, height))
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Zamieniamy osie (height,width,3) -> (width,height,3) bez obracania/odbicia
+    frame = np.transpose(frame, (1, 0, 2))
+    return pygame.surfarray.make_surface(frame)
+
+def draw_text_centered(surface, text, font, color, center_x, center_y):
+    if font is None: return
+    render = font.render(text, True, color)
+    rect = render.get_rect(center=(center_x, center_y))
+    surface.blit(render, rect)
+
+
+def draw_dashboard(screen, exercise_name, is_running, trainer, angles):
+    y_start = CAM_H
+
+    pygame.draw.rect(screen, COLOR_BG, (0, y_start, WIN_W, DASH_H))
+    pygame.draw.line(screen, (80, 80, 80), (0, y_start), (WIN_W, y_start), 2)
+
+    center_x = WIN_W // 2    
+    # lewa
+    left_center_x = WIN_W // 4
+    
+    # prawa
+    right_center_x = (WIN_W // 4) * 3
+
+    box_width = 320
+    box_height = DASH_H - 40
+    
+    left_box_x = left_center_x - (box_width // 2)
+    right_box_x = right_center_x - (box_width // 2)
+    box_y = y_start + 20
+
+    draw_text_centered(screen, f"Ćwiczenie: {exercise_name.upper()}", font_med, COLOR_ACCENT, center_x, y_start + 30)
+
+    status_msg = "Seria trwa" if is_running else "Oczekiwanie"
+    status_col = COLOR_GREEN if is_running else COLOR_RED
+
+    # Ramka statusu
+    pygame.draw.rect(screen, status_col, (center_x - 150, y_start + 60, 300, 40), border_radius=10)
+    draw_text_centered(screen, status_msg, font_small, (0, 0, 0), center_x, y_start + 80)
+
+    # Box na Feedback
+    if trainer.feedback:
+        for i, msg in enumerate(trainer.feedback[:3]):
+            draw_text_centered(screen, msg, font_small, COLOR_RED, center_x, y_start + 140 + (i * 25))
+    else:
+        draw_text_centered(screen, "Technika Prawidłowa", font_small, (100, 100, 100), center_x, y_start + 150)
+
+    # lewa
+    pygame.draw.rect(screen, COLOR_PANEL, (left_box_x, box_y, box_width, box_height), border_radius=15)
+    draw_text_centered(screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50)
+    draw_text_centered(screen, str(trainer.reps_left), font_big, COLOR_ACCENT, left_center_x, y_start + 110)
+    draw_text_centered(screen, "powtórzeń", font_small, (150,150,150), left_center_x, y_start + 150)
+    ang_l = angles.get("left_elbow")
+    val_l = f"{int(ang_l)}°" if ang_l else "--"
+    draw_text_centered(screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_center_x, y_start + 190)
+
+    # prawa
+    pygame.draw.rect(screen, COLOR_PANEL, (right_box_x, box_y, box_width, box_height), border_radius=15)
+    draw_text_centered(screen, "Prawa Ręka", font_med, COLOR_TEXT, right_center_x, y_start + 50)
+    draw_text_centered(screen, str(trainer.reps_right), font_big, COLOR_ACCENT, right_center_x, y_start + 110)
+    draw_text_centered(screen, "powtórzeń", font_small, (150, 150, 150), right_center_x, y_start + 150)
+    ang_r = angles.get("right_elbow")
+    val_r = f"{int(ang_r)}°" if ang_r else "--"
+    draw_text_centered(screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190)
 
 def detect_and_draw(frame, model):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -113,7 +189,7 @@ def angle_between_3d(a, b, c):
     return float(np.degrees(np.arccos(cosang)))
 
 
-def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
+def compute_angles_3d_biceps(results_left, results_right, focal=1.0, baseline=0.6):
     """
     obliczanie katow w stawach w 3d. zwraca slowmiki:
     right/left_elbow (zgiecie reki katy od 0 do 180)
@@ -186,44 +262,34 @@ def compute_angles_3d(results_left, results_right, focal=1.0, baseline=0.6):
     else:
         angles["right_hip_angle"] = None
 
-    # ------ nowe
+    return angles
 
-    # # (szyja, bark, lokiec)
-    # # jak daleko jest lokiec od szyi
-    # # nw czy nadal to uzywane bedzie, zostawiam zeby nie krzyczalo przy wyswietlaniu
-    # # najwyzej sie usunie xd
-    # # narazie komentuje to!
+def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline=0.6):
+    """
+    Liczy kąty pod wyciskanie na barki (Overhead Press).
+    Kluczowy jest kąt: Biodro-Bark-Łokieć (jak wysoko jest ramię).
+    """
+    pts3d = reconstruct_3d(results_left, results_right, focal=focal, baseline=baseline)
+    angles = {}
+    
+    # Enumy MediaPipe
+    Pose = mp.solutions.pose.PoseLandmark
+    
+    # Funkcja pomocnicza do bezpiecznego liczenia
+    def get_ang(p1, p2, p3):
+        if p1.value in pts3d and p2.value in pts3d and p3.value in pts3d:
+            return angle_between_3d(pts3d[p1.value], pts3d[p2.value], pts3d[p3.value])
+        return None
 
-    # angles["left_shoulder"] = None
-    # angles["right_shoulder"] = None
+    # 1. KĄT WZNOSU RAMIENIA (Biodro -> Bark -> Łokieć)
+    # To nam mówi, czy ręka jest na górze (ok 170-180) czy na dole (ok 90)
+    angles["left_shoulder_lift"] = get_ang(Pose.LEFT_HIP, Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW)
+    angles["right_shoulder_lift"] = get_ang(Pose.RIGHT_HIP, Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW)
 
-    # neck = None
-    # if L_SHOULDER in pts3d and R_SHOULDER in pts3d:
-    #     neck = (pts3d[L_SHOULDER] + pts3d[R_SHOULDER]) / 2.0
-
-    # # Left shoulder angle: neck(or left hip) - left_shoulder - left_elbow
-    # if L_SHOULDER in pts3d and L_ELBOW in pts3d:
-    #     ref = None
-    #     if neck is not None:
-    #         ref = neck
-    #     elif L_HIP in pts3d:
-    #         ref = pts3d[L_HIP]
-    #     if ref is not None:
-    #         angles["left_shoulder"] = angle_between_3d(
-    #             ref, pts3d[L_SHOULDER], pts3d[L_ELBOW]
-    #         )
-
-    # # Right shoulder angle: neck(or right hip) - right_shoulder - right_elbow
-    # if R_SHOULDER in pts3d and R_ELBOW in pts3d:
-    #     ref = None
-    #     if neck is not None:
-    #         ref = neck
-    #     elif R_HIP in pts3d:
-    #         ref = pts3d[R_HIP]
-    #     if ref is not None:
-    #         angles["right_shoulder"] = angle_between_3d(
-    #             ref, pts3d[R_SHOULDER], pts3d[R_ELBOW]
-    #         )
+    # 2. KĄT WYPROSTU W ŁOKCIU (Bark -> Łokieć -> Nadgarstek)
+    # To nam mówi, czy "dopchnęliśmy" ruch (wyprost > 160)
+    angles["left_elbow"] = get_ang(Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW, Pose.LEFT_WRIST)
+    angles["right_elbow"] = get_ang(Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW, Pose.RIGHT_WRIST)
 
     return angles
 

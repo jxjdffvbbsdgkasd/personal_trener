@@ -1,21 +1,31 @@
 import cv2
 import numpy as np
+import pygame
 import threading
 import mediapipe as mp
 import speech_recognition as sr
 import time
 import difflib
 
+CAM_W = 640       # Szerokość jednej kamerki
+CAM_H = 480       # Wysokość kamerki
+DASH_H = 250      # Wysokość panelu dolnego
 
-GREEN = (0, 255, 0)
-RED = (0, 0, 255)
-WHITE = (255, 255, 255)
+FPS = 45
 
-# wymiary kamer
-w,h = 960,720
+WIN_W = CAM_W * 2       # Całkowita szerokość (1200)
+WIN_H = CAM_H + DASH_H  # Całkowita wysokość (700)
 
 local_idx = 0
-ip_url = "http://192.168.33.8:8080/video"  # ip kamerki telefon
+#ip_url = "http://192.168.33.10:8080/video"
+ip_url = "http://192.168.1.116:8080/video"
 
-exercises = ["biceps","barki"]
-state = ["start","stop"]
+COLOR_BG = (20, 20, 25)
+COLOR_PANEL = (40, 40, 45)
+COLOR_TEXT = (220, 220, 220)
+COLOR_ACCENT = (0, 200, 255)
+COLOR_GREEN = (50, 205, 50)
+COLOR_RED = (220, 60, 60)
+
+exercises = ["biceps", "barki"]
+state = ["start", "stop"]
