@@ -190,78 +190,32 @@ def angle_between_3d(a, b, c):
 
 
 def compute_angles_3d_biceps(results_left, results_right, focal=1.0, baseline=0.6):
-    """
-    obliczanie katow w stawach w 3d. zwraca slowmiki:
-    right/left_elbow (zgiecie reki katy od 0 do 180)
-    oraz
-    right/left_shoulder_swing (wychylenie lokcia od tulowia)
-
-    """
-    pts3d = reconstruct_3d(results_left, results_right, focal=focal, baseline=baseline)
+    pts3d = reconstruct_3d(results_left, results_right, focal, baseline)
     angles = {}
-    # Use MediaPipe landmark indices
-    L_SHOULDER = mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value
-    L_ELBOW = mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value
-    L_WRIST = mp.solutions.pose.PoseLandmark.LEFT_WRIST.value
-    R_SHOULDER = mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value
-    R_ELBOW = mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value
-    R_WRIST = mp.solutions.pose.PoseLandmark.RIGHT_WRIST.value
-    L_HIP = mp.solutions.pose.PoseLandmark.LEFT_HIP.value
-    R_HIP = mp.solutions.pose.PoseLandmark.RIGHT_HIP.value
-    # TEST na bujanie biodrami przod tyl
-    L_KNEE = mp.solutions.pose.PoseLandmark.LEFT_KNEE.value
-    R_KNEE = mp.solutions.pose.PoseLandmark.RIGHT_KNEE.value
+    pose = mp.solutions.pose.PoseLandmark
+    
+    def get_ang(p1, p2, p3):
+        if p1.value in pts3d and p2.value in pts3d and p3.value in pts3d:
+            return angle_between_3d(pts3d[p1.value], pts3d[p2.value], pts3d[p3.value])
+        return None
 
-    # katy w łokciu (shoulder - elbow - wrist)
-    if L_SHOULDER in pts3d and L_ELBOW in pts3d and L_WRIST in pts3d:
-        angles["left_elbow"] = angle_between_3d(
-            pts3d[L_SHOULDER], pts3d[L_ELBOW], pts3d[L_WRIST]
-        )
-    else:
-        angles["left_elbow"] = None
-
-    if R_SHOULDER in pts3d and R_ELBOW in pts3d and R_WRIST in pts3d:
-        angles["right_elbow"] = angle_between_3d(
-            pts3d[R_SHOULDER], pts3d[R_ELBOW], pts3d[R_WRIST]
-        )
-    else:
-        angles["right_elbow"] = None
-
-    # ----- nowe
-    # jak bardzo ramie odchyla sie od pionu tulowia
-    # kat barkowy (kat miedzy biodrem, barkiem a lokciem)
-    if L_HIP in pts3d and L_SHOULDER in pts3d and L_ELBOW in pts3d:
-        angles["left_shoulder_swing"] = angle_between_3d(
-            pts3d[L_HIP], pts3d[L_SHOULDER], pts3d[L_ELBOW]
-        )
-    else:
-        angles["left_shoulder_swing"] = None
-
-    if R_HIP in pts3d and R_SHOULDER in pts3d and R_ELBOW in pts3d:
-        angles["right_shoulder_swing"] = angle_between_3d(
-            pts3d[R_HIP], pts3d[R_SHOULDER], pts3d[R_ELBOW]
-        )
-    else:
-        angles["right_shoulder_swing"] = None
-
-    # kat biodrowy (wykrywanie bujania sie przod tyl)
-    # (bark biodro kolano)
-    # prosto 180 stopni
-    # pochylenie to mniej niz 180
-    if L_SHOULDER in pts3d and L_HIP in pts3d and L_KNEE in pts3d:
-        angles["left_hip_angle"] = angle_between_3d(
-            pts3d[L_SHOULDER], pts3d[L_HIP], pts3d[L_KNEE]
-        )
-    else:
-        angles["left_hip_angle"] = None
-
-    if R_SHOULDER in pts3d and R_HIP in pts3d and R_KNEE in pts3d:
-        angles["right_hip_angle"] = angle_between_3d(
-            pts3d[R_SHOULDER], pts3d[R_HIP], pts3d[R_KNEE]
-        )
-    else:
-        angles["right_hip_angle"] = None
-
+    # --- PODSTAWOWE KĄTY ---
+    # Zgięcie w łokciu (Fleksja)
+    angles["left_elbow"] = get_ang(pose.LEFT_SHOULDER, pose.LEFT_ELBOW, pose.LEFT_WRIST)
+    angles["right_elbow"] = get_ang(pose.RIGHT_SHOULDER, pose.RIGHT_ELBOW, pose.RIGHT_WRIST)
+    
+    # Swing (Czy łokieć ucieka od ciała w przód/tył/bok - ruch ramienia)
+    angles["left_shoulder_swing"] = get_ang(pose.LEFT_HIP, pose.LEFT_SHOULDER, pose.LEFT_ELBOW)
+    angles["right_shoulder_swing"] = get_ang(pose.RIGHT_HIP, pose.RIGHT_SHOULDER, pose.RIGHT_ELBOW)
+    
+    # --- NOWOŚĆ: WYKRYWANIE "KÓŁEK" (FLARE) ---
+    # Sprawdzamy kąt: PrawyBark -> LewyBark -> LewyNadgarstek.
+    # Jeśli trzymasz ręce wąsko, kąt ~90 stopni.
+    # Jeśli machasz na boki ("ręce na zewnątrz"), kąt rośnie > 110.
+    
+    angles["left_flare"] = get_ang(pose.RIGHT_SHOULDER, pose.LEFT_SHOULDER, pose.LEFT_WRIST)
+    angles["right_flare"] = get_ang(pose.LEFT_SHOULDER, pose.RIGHT_SHOULDER, pose.RIGHT_WRIST)
+    
     return angles
 
 def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline=0.6):

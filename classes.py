@@ -91,8 +91,10 @@ class Trainer:
         # Lewa
         self.reps_left = 0
         self.stage_left = "down"
+        self.cheat_left = False
         # Prawa
         self.reps_right = 0
+        self.cheat_right = False
         self.stage_right = "down"
         # Komunikaty
         self.feedback = []
@@ -102,85 +104,128 @@ class Trainer:
 
         l_angle = angles.get("left_elbow")
         l_swing = angles.get("left_shoulder_swing")
+        l_flare = angles.get("left_flare")
 
         if l_angle is not None:
             if l_angle > 150:
                 self.stage_left = "down"
-            if l_angle < 50 and self.stage_left == "down":
-                self.stage_left = "up"
-                self.reps_left += 1
+                self.cheat_left = False
 
-            # Korekta
-            if l_swing is not None and l_swing > 35:
-                self.feedback.append("LEWA: Łokieć przy ciele !")
+            if self.stage_left == "down" and l_angle < 140:
+                if l_flare is not None and l_flare > 105:
+                    self.cheat_left = True
+                    self.feedback.append("LEWA: Nie machaj na boki!")
+
+                if l_flare is not None and l_flare < 80:
+                    self.cheat_left = True
+                    self.feedback.append("LEWA: Nie ściągaj do środka!")
+
+                if l_swing is not None and l_swing > 35:
+                    self.cheat_left = True
+                    self.feedback.append("LEWA: Łokieć przy ciele!")
+
+            if l_angle < 50 and self.stage_left == "down":
+                if not self.cheat_left:
+                    self.stage_left = "up"
+                    self.reps_left += 1
+                else:
+                    self.stage_left = "up"
+                    self.feedback.append("LEWA: Powtórzenie niezaliczone!")
 
         r_angle = angles.get("right_elbow")
         r_swing = angles.get("right_shoulder_swing")
-
+        r_flare = angles.get("right_flare")
+    
         if r_angle is not None:
             if r_angle > 150:
                 self.stage_right = "down"
+                self.cheat_right = False
+
+            if self.stage_right == "down" and r_angle < 140:
+                if r_flare is not None and r_flare > 105:
+                    self.cheat_right = True
+                    self.feedback.append("PRAWA: Nie machaj na boki!")
+
+                if r_flare is not None and r_flare < 80:
+                    self.cheat_right = True
+                    self.feedback.append("PRAWA: Nie ściągaj do środka!")
+
+                if r_swing is not None and r_swing > 35:
+                    self.cheat_right = True
+                    self.feedback.append("PRAWA: Łokieć przy ciele!")
+
             if r_angle < 50 and self.stage_right == "down":
-                self.stage_right = "up"
-                self.reps_right += 1
-
-            # Korekta
-            if r_swing is not None and r_swing > 35:
-                self.feedback.append("PRAWA: Łokieć przy ciele !")
-
-    # classes.py (wewnątrz klasy TrainerLogic)
+                if not self.cheat_right:
+                    self.stage_right = "up"
+                    self.reps_right += 1
+                else:
+                    self.stage_right = "up"
+                    self.feedback.append("PRAWA: Powtórzenie niezaliczone!")
 
     def process_shoulders(self, angles):
-        """Logika dla wyciskania na barki (Overhead Press)."""
+        """Logika dla wyciskania na barki z wykrywaniem błędów (cheat)."""
         self.feedback = [] 
         
-        # --- LEWA RĘKA ---
+        # lewa
         l_lift = angles.get("left_shoulder_lift") # Kąt wznosu (względem tułowia)
         l_elbow = angles.get("left_elbow")        # Kąt wyprostu ręki
         
         if l_lift is not None and l_elbow is not None:
-            # 1. Wykrywanie pozycji DOLNEJ (Start wyciskania)
-            # ZMIANA: Aby uznać start, ręka musi być na wysokości barków LUB niżej,
-            # ALE KLUCZOWE: Łokieć musi być mocno zgięty (< 110 stopni).
-            # Przy wznosach łokieć jest prosty (>150), więc ten warunek nie przejdzie.
+            # 1. POZYCJA DOLNA (Start) - Resetujemy błędy
+            # Warunek: Ręka nisko (<120) ORAZ łokieć mocno zgięty (<110)
             if l_lift < 120 and l_elbow < 110:
                 self.stage_left = "down"
+                self.cheat_left = False # Resetujemy flagę oszustwa
             
-            # Opcjonalnie: Wykrywanie oszukiwania (robienie wznosów zamiast wyciskania)
-            # Jeśli ręka jest poziomo (ok 90 stopni), ale łokieć jest prosty -> Ostrzeżenie
+            # 2. WYKRYWANIE OSZUSTWA (Wznosy zamiast wyciskania)
+            # Jeśli ręka jest w poziomie (70-110 stopni), ale łokieć jest PROSTY (>140),
+            # to znaczy, że robisz "pajacyka" / wznosy, a nie wyciskanie.
             if 70 < l_lift < 110 and l_elbow > 140:
-                self.feedback.append("LEWA: To nie wznosy! Zegnij łokcie.")
+                self.cheat_left = True
+                self.feedback.append("LEWA: Zegnij łokcie! To nie wznosy.")
 
-            # 2. Wykrywanie pozycji GÓRNEJ (Koniec ruchu)
-            # Ręka wysoko (>150) i wyprostowana (>145)
-            # Liczymy tylko jeśli wcześniej zaliczyliśmy poprawną fazę "down" (zgięcie)
+            # 3. ZALICZENIE POWTÓRZENIA (Góra)
+            # Warunek: Ręka wysoko (>150) i wyprostowana (>145)
             if l_lift > 150 and l_elbow > 145 and self.stage_left == "down":
-                self.stage_left = "up"
-                self.reps_left += 1
+                if not self.cheat_left:
+                    self.stage_left = "up"
+                    self.reps_left += 1
+                else:
+                    # Jeśli wykryto wznosy, nie zaliczamy i resetujemy cykl
+                    self.stage_left = "up"
+                    self.feedback.append("LEWA: Powtórzenie niezaliczone!")
             
-            # Korekta: Niepełny wyprost na górze
+            # Dodatkowy feedback: Niepełny wyprost na górze
             if l_lift > 155 and l_elbow < 130:
-                self.feedback.append("LEWA: Wyprostuj rękę do końca!")
+                self.feedback.append("LEWA: Doprostuj rękę na górze!")
 
         # prawa
         r_lift = angles.get("right_shoulder_lift")
         r_elbow = angles.get("right_elbow")
         
         if r_lift is not None and r_elbow is not None:
-            # Rygorystyczny warunek zgięcia łokcia dla startu
+            # 1. Pozycja dolna (Reset)
             if r_lift < 120 and r_elbow < 110:
                 self.stage_right = "down"
+                self.cheat_right = False
             
-            # Ostrzeżenie przed wznosami
+            # 2. Wykrywanie oszustwa (Wznosy)
             if 70 < r_lift < 110 and r_elbow > 140:
-                self.feedback.append("PRAWA: To nie wznosy! Zegnij łokcie.")
+                self.cheat_right = True
+                self.feedback.append("PRAWA: Zegnij łokcie! To nie wznosy.")
 
+            # 3. Zaliczenie powtórzenia
             if r_lift > 150 and r_elbow > 145 and self.stage_right == "down":
-                self.stage_right = "up"
-                self.reps_right += 1
+                if not self.cheat_right:
+                    self.stage_right = "up"
+                    self.reps_right += 1
+                else:
+                    self.stage_right = "up"
+                    self.feedback.append("PRAWA: Powtórzenie niezaliczone!")
             
+            # Feedback
             if r_lift > 155 and r_elbow < 130:
-                self.feedback.append("PRAWA: Wyprostuj rękę do końca!")
+                self.feedback.append("PRAWA: Doprostuj rękę na górze!")
 
 
     def reset(self):
@@ -188,4 +233,6 @@ class Trainer:
         self.reps_right = 0
         self.stage_left = "down"
         self.stage_right = "down"
+        self.cheat_left = False 
+        self.cheat_right = False
         self.feedback = []
