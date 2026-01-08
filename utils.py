@@ -455,8 +455,10 @@ def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
         pass
     return None
 
-def process_command(cmd,voice_control,exercise_type):    
+def process_command(voice_control,exercise_type):    
+    cmd = voice_control.last_command
     if cmd == "reset" and not voice_control.started:
+        voice_control.last_command = ""
         exercise_type = "reset"
         return exercise_type
 

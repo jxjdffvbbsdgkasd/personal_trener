@@ -24,8 +24,7 @@ angles = None
 running = True
 while running:
 
-    cmd = voice_control.last_command
-    exercise_type = process_command(cmd, voice_control, exercise_type)
+    exercise_type = process_command(voice_control, exercise_type)
     if exercise_type == "reset":
         trainer.reset()
         exercise_type = "none"
