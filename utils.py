@@ -78,17 +78,31 @@ def draw_dashboard(screen, exercise_name, is_running, trainer, angles):
     val_r = f"{int(ang_r)}°" if ang_r else "--"
     draw_text_centered(screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190)
 
-def detect_and_draw(frame, model):
+def detect_and_draw(frame, model, draw_color=(0, 255, 0)):
+    """
+    Wykrywa pozę i rysuje szkielet w zadanym kolorze.
+    draw_color: krotka (B, G, R) - domyślnie Zielony (0, 255, 0).
+    """
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_rgb.flags.writeable = False
-
     results = model.process(frame_rgb)
-
+    
     if results.pose_landmarks:
-        mp.solutions.drawing_utils.draw_landmarks(
-            frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS
+        # Definiujemy styl rysowania (kropki i linie w tym samym kolorze)
+        # color=(B, G, R), thickness=grubość, circle_radius=promień kropki
+        custom_style = mp.solutions.drawing_utils.DrawingSpec(
+            color=draw_color, thickness=2, circle_radius=2
         )
-
+        
+        # Rysujemy
+        mp.solutions.drawing_utils.draw_landmarks(
+            frame, 
+            results.pose_landmarks, 
+            mp.solutions.pose.POSE_CONNECTIONS,
+            landmark_drawing_spec=custom_style,   # Styl kropek
+            connection_drawing_spec=custom_style  # Styl linii
+        )
+        
     return frame, results
 
 

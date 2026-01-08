@@ -44,8 +44,16 @@ while running:
     frame1 = cv2.resize(frame1, (CAM_W, CAM_H))
     frame2 = cv2.resize(frame2, (CAM_W, CAM_H))
 
-    frame1, results1 = detect_and_draw(frame1, pose_local)
-    frame2, results2 = detect_and_draw(frame2, pose_ip)
+    # 1. Ustalamy kolor na podstawie flag błędu (cheat)
+    skeleton_color = (0, 255, 0) # Domyślnie ZIELONY
+    if trainer.cheat_left or trainer.cheat_right:
+        skeleton_color = (0, 0, 255) # Jeśli błąd -> CZERWONY
+
+    # 2. Przekazujemy kolor do funkcji rysującej (draw_color)
+    frame1, results1 = detect_and_draw(frame1, pose_local, draw_color=skeleton_color)
+    frame2, results2 = detect_and_draw(frame2, pose_ip, draw_color=skeleton_color)
+
+    angles = {}
 
     if voice_control.started:
         if exercise_type == "biceps":
