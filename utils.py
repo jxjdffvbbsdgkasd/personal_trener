@@ -59,7 +59,8 @@ def draw_dashboard(screen, exercise_name, is_running, trainer, angles):
             draw_text_centered(screen, msg, font_small, COLOR_RED, center_x, y_start + 140 + (i * 25))
     else:
         draw_text_centered(screen, "Technika Prawidłowa", font_small, (100, 100, 100), center_x, y_start + 150)
-
+    if angles is None:
+        return
     # lewa
     pygame.draw.rect(screen, COLOR_PANEL, (left_box_x, box_y, box_width, box_height), border_radius=15)
     draw_text_centered(screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50)
@@ -467,3 +468,31 @@ def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
     except Exception as e:
         pass
     return None
+
+def process_command(voice_control,exercise_type):    
+    cmd = voice_control.last_command
+    if cmd == "reset" and not voice_control.started:
+        voice_control.last_command = ""
+        exercise_type = "reset"
+        return exercise_type
+
+    elif cmd == "reset" and voice_control.started:
+        print("aby zresetować ćwiczenie, najpierw je zatrzymaj! (stop)")
+        voice_control.last_command = ""
+        return exercise_type
+    
+
+    if cmd == "start" and exercise_type == "none":
+        print(" Wybierz ćwiczenie najpierw!")
+        voice_control.last_command = ""
+        return exercise_type
+    
+    if cmd == 'start' and exercise_type != "none":
+        voice_control.started = True
+    elif cmd == 'stop':
+        voice_control.started = False
+    elif cmd in exercises and not voice_control.started:
+        exercise_type = cmd
+    
+    voice_control.last_command = ""
+    return exercise_type
