@@ -16,17 +16,21 @@ cap_local = cv2.VideoCapture(local_idx)
 cam_ip = IPStream(ip_url)
 
 print("Wybierz ćwiczenie (biceps albo barki)")
-# exercise_type = select_exercise_via_voice() # Docelowo to narazie na sztywno jest biceps
-exercise_type = "barki"
-print(f"-> Wybrano: {exercise_type}")
-
-voice_control = VoiceThread()
-voice_control.started = True # start na sztywno do testow
+exercise_type = "none"
+voice_control = VoiceThread(model_path="vosk-model")
 
 trainer = Trainer()
-
+angles = None
 running = True
 while running:
+
+    cmd = voice_control.last_command
+    exercise_type = process_command(cmd, voice_control, exercise_type)
+    if exercise_type == "reset":
+        trainer.reset()
+        exercise_type = "none"
+
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False

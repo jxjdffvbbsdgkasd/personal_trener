@@ -20,68 +20,68 @@ class IPStream:
         self.running = False
         self.cap.release()
 
+
+
 class VoiceThread:
-    def __init__(self):
+    def __init__(self, model_path="model"): # ścieżka do folderu z modelem vosk
         self.started = False
         self.running = True
         self.last_command = "COMMAND_NONE"
- 
-        self.recognizer = sr.Recognizer()
-        self.recognizer.pause_threshold = 0.5  
-        self.recognizer.non_speaking_duration = 0.4 
+        
+        # Kolejka na dane audio
+        self.q = queue.Queue()
+
+        # Inicjalizacja modelu
+        if not os.path.exists(model_path):
+            print(" [Voice] BŁĄD: Nie znaleziono modelu Vosk w folderze:", model_path)
+            self.running = False
+            return
+
+        self.model = Model(model_path)
+        
+        # Opcjonalnie: ograniczamy słownik, żeby zwiększyć celność
+        # Słowa muszą być małymi literami
+        self.words_list = '["start", "stop", "barki", "biceps", "reset"]'
+        self.recognizer = KaldiRecognizer(self.model, 16000, self.words_list)
 
         self.thread = threading.Thread(target=self.listen_loop, daemon=True)
         self.thread.start()
 
+    def audio_callback(self, in_data, frame_count, time_info, status):
+        """Pobiera audio z mikrofonu i wrzuca do kolejki"""
+        self.q.put(in_data)
+        return (None, pyaudio.paContinue)
 
     def listen_loop(self):
-        print(" [VoiceThread] active")
+        print(" [VoiceThread] Aktywny (Vosk)")
         
-        mic = sr.Microphone(device_index=1, sample_rate=48000) # NIE RZUCAC MIKROFONU POMIEDZY WATKAMI BO PYTHON SIE DENERWUJE
-        
-        print(" [Voice] noise calibration... please wait")
-        with mic as source:
-            self.recognizer.adjust_for_ambient_noise(source, duration=2)
-            self.recognizer.dynamic_energy_threshold = False 
-            # self.recognizer.energy_threshold = 400 #reczne ustawienie progu
-            
-        print(" [Voice] ready.")
-        while self.running:
-            try:
-                command = self.grab_voice(mic=mic) 
-                if command:
-                    matches = difflib.get_close_matches(command, state, n=1, cutoff=0.5)
-                    if not matches:
-                        continue
-                    cmd = matches[0]
-                    print(f" [VoiceThread] heard: {cmd}")
-                    if not self.started and ("start" in cmd):
-                        self.started = True
-                        self.last_command = "START"
-                        print(" -> Rozpoczynam serie!")
+        p = pyaudio.PyAudio()
+        stream = p.open(format=pyaudio.paInt16, 
+                        channels=1, 
+                        rate=16000, 
+                        input=True, 
+                        frames_per_buffer=8000,
+                        stream_callback=self.audio_callback)
 
-                    elif self.started and ("stop" in cmd or "koniec" in cmd):
-                        self.started = False
-                        self.last_command = "STOP"
-                        print(" -> Koncze serie!")
-                        
-            except Exception:
-                pass
+        stream.start_stream()
+
+        while self.running:
+            data = self.q.get()
+            if self.recognizer.AcceptWaveform(data):
+                result = json.loads(self.recognizer.Result())
+                text = result.get("text", "")
                 
-    def grab_voice(self, mic, timeout=None, phrase_time_limit=3):
-        r = self.recognizer
-        try:
-            with mic as source:
-                audio = r.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
-            text = r.recognize_google(audio, show_all=False,language='pl-PL')
-            if not text:
-                return None
-            text = text.lower()
-            return text
-        except Exception as e:
-            pass
-        return None
-    
+                if text:
+                    self.last_command = text
+            else:
+                # Tutaj można wyciągać PartialResult(), jeśli chcesz widzieć tekst w trakcie mówienia
+                pass
+
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+
+
     def stop(self):
         self.running = False
 

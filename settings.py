@@ -6,6 +6,11 @@ import mediapipe as mp
 import speech_recognition as sr
 import time
 import difflib
+import os
+import json
+import queue
+from vosk import Model, KaldiRecognizer
+import pyaudio
 
 CAM_W = 640       # Szerokość jednej kamerki
 CAM_H = 480       # Wysokość kamerki
@@ -18,7 +23,7 @@ WIN_H = CAM_H + DASH_H  # Całkowita wysokość (700)
 
 local_idx = 0
 #ip_url = "http://192.168.33.10:8080/video"
-ip_url = "http://192.168.1.116:8080/video"
+ip_url = "http://192.168.254.101:8080/video"
 
 COLOR_BG = (20, 20, 25)
 COLOR_PANEL = (40, 40, 45)
