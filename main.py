@@ -1,11 +1,18 @@
 from settings import *
 from classes import *
 from utils import *
+import utils
 from db_manager import DBManager
 from ui_components import *
 
 pygame.init()
 init_fonts()
+
+# czcionki z utilsow
+font_big = utils.font_big
+font_med = utils.font_med
+font_small = utils.font_small
+
 screen = pygame.display.set_mode((WIN_W, WIN_H))
 pygame.display.set_caption("Cyber Trener - System Analizy Ruchu")
 clock = pygame.time.Clock()
@@ -28,7 +35,8 @@ voice_control = VoiceThread(model_path="vosk-model")
 
 trainer = Trainer()
 db = DBManager()
-current_user_id = 1  # narazie na sztywno bo nie ma logowania
+# current_user_id = 1  # narazie na sztywno bo nie ma logowania
+current_user_id = None
 angles = None
 running = True
 
@@ -61,82 +69,215 @@ button_logout = Button(WIN_W - 120, 20, 100, 40, "Wyloguj", font_small, "LOGOUT"
 button_back = Button(20, 20, 100, 40, "Powrót", font_small, "BACK")
 
 while running:
+    screen.fill(COLOR_BG)
 
-    # obhsluga zapisu skonczonej serii do bazy (po powiedzeniu "STOP")
-    if voice_control.last_command == "stop" and voice_control.started:
-        if exercise_type != "none":
-            acc = trainer.get_accuracy()
-            print(f"[ZAPIS] Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%")
-
-            db.save_workout(
-                current_user_id,
-                exercise_type,
-                trainer.reps_left,
-                trainer.reps_right,
-                acc,
-            )
-
-            # reset licznikow
-            trainer.reset()
-
-    exercise_type = process_command(voice_control, exercise_type)
-    if exercise_type == "reset":
-        trainer.reset()
-        exercise_type = "none"
-
-    for event in pygame.event.get():
+    # obsluga zdarzen
+    events = pygame.event.get()
+    for event in events:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
                 running = False
-            if event.key == pygame.K_r:
-                trainer.reset()  # Reset klawiszem R
 
-    ret1, frame1 = cap_local.read()
-    ret2, frame2 = cam_ip.read()
+        # Obsługa wpisywania tekstu tylko w stanie LOGIN
+        if app_state == "LOGIN":
+            input_login.handle_event(event)
+            input_pass.handle_event(event)
 
-    # Obsługa błędów kamer (pusta klatka)
-    if not ret1:
-        frame1 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
-    if not ret2:
-        frame2 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
+    # STAN LOGOWANIA
+    if app_state == "LOGIN":
+        draw_text_centered(
+            screen, "CYBER TRENER - LOGOWANIE", font_big, COLOR_ACCENT, center_x, 100
+        )
 
-    frame1 = cv2.resize(frame1, (CAM_W, CAM_H))
-    frame2 = cv2.resize(frame2, (CAM_W, CAM_H))
+        input_login.draw(screen)
+        input_pass.draw(screen)
+        button_login.draw(screen)
+        button_register.draw(screen)
 
-    # 1. Ustalamy kolor na podstawie flag błędu (cheat)
-    skeleton_color = (0, 255, 0)  # Domyślnie ZIELONY
-    if trainer.cheat_left or trainer.cheat_right:
-        skeleton_color = (0, 0, 255)  # Jeśli błąd -> CZERWONY
-
-    # 2. Przekazujemy kolor do funkcji rysującej (draw_color)
-    frame1, results1 = detect_and_draw(frame1, pose_local, draw_color=skeleton_color)
-    frame2, results2 = detect_and_draw(frame2, pose_ip, draw_color=skeleton_color)
-
-    angles = {}
-
-    if voice_control.started:
-        if exercise_type == "biceps":
-            angles = compute_angles_3d_biceps(
-                results1, results2, focal=1.0, baseline=0.6
+        # Komunikaty błędów
+        if login_message:
+            draw_text_centered(
+                screen, login_message, font_small, COLOR_RED, center_x, center_y + 180
             )
-            trainer.process_biceps(angles)
-        elif exercise_type == "barki":
-            angles = compute_angles_3d_shoulders(
-                results1, results2, focal=1.0, baseline=0.6
+
+        # Logika Przycisków
+        for event in events:
+            if button_login.is_clicked(event):
+                login = input_login.get_text()
+                password = input_pass.get_text()
+                user = db.login_user(login, password)
+                if user:
+                    current_user_id = user[0]
+                    current_user_name = user[1]
+                    app_state = "MENU"
+                    login_message = ""
+                    print(f"Zalogowano: {current_user_name}")
+                else:
+                    login_message = "Błędny login lub hasło!"
+
+            if button_register.is_clicked(event):
+                login = input_login.get_text()
+                password = input_pass.get_text()
+                if len(password) < 4:
+                    login_message = "Hasło za krótkie (min 4 znaki)"
+                else:
+                    ok, msg = db.register_user(login, password)
+                    login_message = msg
+
+    # STAN MENU GLOWNEGO
+    elif app_state == "MENU":
+        draw_text_centered(
+            screen, f"Witaj, {current_user_name}!", font_big, COLOR_TEXT, center_x, 150
+        )
+
+        button_start_train.draw(screen)
+        button_show_hist.draw(screen)
+        button_logout.draw(screen)
+
+        for event in events:
+            if button_start_train.is_clicked(event):
+                app_state = "TRAINING"
+                trainer.reset()  # Resetujemy trenera przed startem
+
+            if button_show_hist.is_clicked(event):
+                app_state = "HISTORY"
+
+            if button_logout.is_clicked(event):
+                app_state = "LOGIN"
+                current_user_id = None
+                current_user_name = ""
+                input_pass.text = ""  # Czyścimy hasło
+                input_pass.txt_surface = font_med.render("", True, (255, 255, 255))
+
+    elif app_state == "TRAINING":
+        # obhsluga zapisu skonczonej serii do bazy (po powiedzeniu "STOP")
+        if voice_control.last_command == "stop" and voice_control.started:
+            if exercise_type != "none":
+                acc = trainer.get_accuracy()
+                print(
+                    f"[ZAPIS] Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%"
+                )
+
+                db.save_workout(
+                    current_user_id,
+                    exercise_type,
+                    trainer.reps_left,
+                    trainer.reps_right,
+                    acc,
+                )
+
+                # reset licznikow
+                trainer.reset()
+
+        exercise_type = process_command(voice_control, exercise_type)
+        if exercise_type == "reset":
+            trainer.reset()
+            exercise_type = "none"
+
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    trainer.reset()  # Reset klawiszem R
+
+            # przycisk powrotu
+            if button_back.is_clicked(event):
+                app_state = "MENU"
+                # voice_control.stop()  # ubicie watku do komend glosowych, zakomentowane bo psuje xd
+                exercise_type = "none"
+
+        ret1, frame1 = cap_local.read()
+        ret2, frame2 = cam_ip.read()
+
+        # Obsługa błędów kamer (pusta klatka)
+        if not ret1:
+            frame1 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
+        if not ret2:
+            frame2 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
+
+        frame1 = cv2.resize(frame1, (CAM_W, CAM_H))
+        frame2 = cv2.resize(frame2, (CAM_W, CAM_H))
+
+        # kolor szkieletu na podstawie bledu
+        skeleton_color = (0, 255, 0)  # Domyślnie ZIELONY
+        if trainer.cheat_left or trainer.cheat_right:
+            skeleton_color = (0, 0, 255)  # bledne: CZERWON
+
+        # kolor do funkcji rysujacej
+        frame1, results1 = detect_and_draw(
+            frame1, pose_local, draw_color=skeleton_color
+        )
+        frame2, results2 = detect_and_draw(frame2, pose_ip, draw_color=skeleton_color)
+
+        angles = {}
+
+        if voice_control.started:
+            if exercise_type == "biceps":
+                angles = compute_angles_3d_biceps(
+                    results1, results2, focal=1.0, baseline=0.6
+                )
+                trainer.process_biceps(angles)
+            elif exercise_type == "barki":
+                angles = compute_angles_3d_shoulders(
+                    results1, results2, focal=1.0, baseline=0.6
+                )
+                trainer.process_shoulders(angles)
+
+        screen.fill(COLOR_BG)
+
+        pg_frame1 = cv2_to_pygame(frame1, CAM_W, CAM_H)
+        pg_frame2 = cv2_to_pygame(frame2, CAM_W, CAM_H)
+
+        screen.blit(pg_frame1, (0, 0))
+        screen.blit(pg_frame2, (CAM_W, 0))
+
+        draw_dashboard(screen, exercise_type, voice_control.started, trainer, angles)
+
+        button_back.draw(screen)
+
+    # STAN HISTORII
+    elif app_state == "HISTORY":
+        draw_text_centered(
+            screen, "Historia Treningów", font_big, COLOR_ACCENT, center_x, 50
+        )
+
+        history = db.get_user_history(current_user_id)
+
+        y_pos = 120
+        # Nagłówki tabeli
+        headers = (
+            f"{'Data':<16}   {'Typ':<8}   {'Lewa':<5}   {'Prawa':<5}   {'Poprawność'}"
+        )
+        draw_text_centered(
+            screen, headers, font_small, (200, 200, 200), center_x, y_pos
+        )
+        pygame.draw.line(
+            screen,
+            (100, 100, 100),
+            (center_x - 350, y_pos + 15),
+            (center_x + 350, y_pos + 15),
+        )
+
+        y_pos += 40
+        if not history:
+            draw_text_centered(
+                screen, "Brak treningów.", font_med, COLOR_TEXT, center_x, y_pos + 50
             )
-            trainer.process_shoulders(angles)
+        else:
+            for row in history:
+                # row = (date, type, l, r, acc)
+                date_short = row[0][5:-3]  # (MM-DD HH:MM)
+                line = f"{date_short:<16}   {row[1]:<8}   {row[2]:<5}   {row[3]:<5}   {row[4]:.1f}%"
+                draw_text_centered(
+                    screen, line, font_small, COLOR_TEXT, center_x, y_pos
+                )
+                y_pos += 30
 
-    screen.fill(COLOR_BG)
-
-    pg_frame1 = cv2_to_pygame(frame1, CAM_W, CAM_H)
-    pg_frame2 = cv2_to_pygame(frame2, CAM_W, CAM_H)
-
-    screen.blit(pg_frame1, (0, 0))
-    screen.blit(pg_frame2, (CAM_W, 0))
-
-    draw_dashboard(screen, exercise_type, voice_control.started, trainer, angles)
+        button_back.draw(screen)
+        for event in events:
+            if button_back.is_clicked(event):
+                app_state = "MENU"
 
     pygame.display.flip()
     clock.tick(FPS)
