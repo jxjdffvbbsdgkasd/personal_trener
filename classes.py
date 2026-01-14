@@ -1,5 +1,6 @@
 from settings import *
 
+
 class IPStream:
     def __init__(self, url):
         self.cap = cv2.VideoCapture(url)
@@ -21,13 +22,12 @@ class IPStream:
         self.cap.release()
 
 
-
 class VoiceThread:
-    def __init__(self, model_path="model"): # ścieżka do folderu z modelem vosk
+    def __init__(self, model_path="model"):  # ścieżka do folderu z modelem vosk
         self.started = False
         self.running = True
         self.last_command = "COMMAND_NONE"
-        
+
         # Kolejka na dane audio
         self.q = queue.Queue()
 
@@ -38,7 +38,7 @@ class VoiceThread:
             return
 
         self.model = Model(model_path)
-        
+
         # Opcjonalnie: ograniczamy słownik, żeby zwiększyć celność
         # Słowa muszą być małymi literami
         self.words_list = '["start", "stop", "barki", "biceps", "reset"]'
@@ -54,14 +54,16 @@ class VoiceThread:
 
     def listen_loop(self):
         print(" [VoiceThread] Aktywny (Vosk)")
-        
+
         p = pyaudio.PyAudio()
-        stream = p.open(format=pyaudio.paInt16, 
-                        channels=1, 
-                        rate=16000, 
-                        input=True, 
-                        frames_per_buffer=8000,
-                        stream_callback=self.audio_callback)
+        stream = p.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=16000,
+            input=True,
+            frames_per_buffer=8000,
+            stream_callback=self.audio_callback,
+        )
 
         stream.start_stream()
 
@@ -70,7 +72,7 @@ class VoiceThread:
             if self.recognizer.AcceptWaveform(data):
                 result = json.loads(self.recognizer.Result())
                 text = result.get("text", "")
-                
+
                 if text:
                     self.last_command = text
             else:
@@ -80,7 +82,6 @@ class VoiceThread:
         stream.stop_stream()
         stream.close()
         p.terminate()
-
 
     def stop(self):
         self.running = False
@@ -135,7 +136,7 @@ class Trainer:
         r_angle = angles.get("right_elbow")
         r_swing = angles.get("right_shoulder_swing")
         r_flare = angles.get("right_flare")
-    
+
         if r_angle is not None:
             if r_angle > 150:
                 self.stage_right = "down"
@@ -164,19 +165,19 @@ class Trainer:
 
     def process_shoulders(self, angles):
         """Logika dla wyciskania na barki z wykrywaniem błędów (cheat)."""
-        self.feedback = [] 
-        
+        self.feedback = []
+
         # lewa
-        l_lift = angles.get("left_shoulder_lift") # Kąt wznosu (względem tułowia)
-        l_elbow = angles.get("left_elbow")        # Kąt wyprostu ręki
-        
+        l_lift = angles.get("left_shoulder_lift")  # Kąt wznosu (względem tułowia)
+        l_elbow = angles.get("left_elbow")  # Kąt wyprostu ręki
+
         if l_lift is not None and l_elbow is not None:
             # 1. POZYCJA DOLNA (Start) - Resetujemy błędy
             # Warunek: Ręka nisko (<120) ORAZ łokieć mocno zgięty (<110)
             if l_lift < 120 and l_elbow < 110:
                 self.stage_left = "down"
-                self.cheat_left = False # Resetujemy flagę oszustwa
-            
+                self.cheat_left = False  # Resetujemy flagę oszustwa
+
             # 2. WYKRYWANIE OSZUSTWA (Wznosy zamiast wyciskania)
             # Jeśli ręka jest w poziomie (70-110 stopni), ale łokieć jest PROSTY (>140),
             # to znaczy, że robisz "pajacyka" / wznosy, a nie wyciskanie.
@@ -194,7 +195,7 @@ class Trainer:
                     # Jeśli wykryto wznosy, nie zaliczamy i resetujemy cykl
                     self.stage_left = "up"
                     self.feedback.append("LEWA: Powtórzenie niezaliczone!")
-            
+
             # Dodatkowy feedback: Niepełny wyprost na górze
             if l_lift > 155 and l_elbow < 130:
                 self.feedback.append("LEWA: Doprostuj rękę na górze!")
@@ -202,13 +203,13 @@ class Trainer:
         # prawa
         r_lift = angles.get("right_shoulder_lift")
         r_elbow = angles.get("right_elbow")
-        
+
         if r_lift is not None and r_elbow is not None:
             # 1. Pozycja dolna (Reset)
             if r_lift < 120 and r_elbow < 110:
                 self.stage_right = "down"
                 self.cheat_right = False
-            
+
             # 2. Wykrywanie oszustwa (Wznosy)
             if 70 < r_lift < 110 and r_elbow > 140:
                 self.cheat_right = True
@@ -222,17 +223,16 @@ class Trainer:
                 else:
                     self.stage_right = "up"
                     self.feedback.append("PRAWA: Powtórzenie niezaliczone!")
-            
+
             # Feedback
             if r_lift > 155 and r_elbow < 130:
                 self.feedback.append("PRAWA: Doprostuj rękę na górze!")
-
 
     def reset(self):
         self.reps_left = 0
         self.reps_right = 0
         self.stage_left = "down"
         self.stage_right = "down"
-        self.cheat_left = False 
+        self.cheat_left = False
         self.cheat_right = False
         self.feedback = []
