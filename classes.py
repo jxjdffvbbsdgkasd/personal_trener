@@ -91,12 +91,14 @@ class Trainer:
     def __init__(self):
         # Lewa
         self.reps_left = 0
+        self.failed_reps_left = 0
         self.stage_left = "down"
         self.cheat_left = False
         # Prawa
         self.reps_right = 0
-        self.cheat_right = False
+        self.failed_reps_right = 0
         self.stage_right = "down"
+        self.cheat_right = False
         # Komunikaty
         self.feedback = []
 
@@ -131,6 +133,7 @@ class Trainer:
                     self.reps_left += 1
                 else:
                     self.stage_left = "up"
+                    self.failed_reps_left += 1
                     self.feedback.append("LEWA: Powtórzenie niezaliczone!")
 
         r_angle = angles.get("right_elbow")
@@ -161,6 +164,7 @@ class Trainer:
                     self.reps_right += 1
                 else:
                     self.stage_right = "up"
+                    self.failed_reps_right += 1
                     self.feedback.append("PRAWA: Powtórzenie niezaliczone!")
 
     def process_shoulders(self, angles):
@@ -194,6 +198,7 @@ class Trainer:
                 else:
                     # Jeśli wykryto wznosy, nie zaliczamy i resetujemy cykl
                     self.stage_left = "up"
+                    self.failed_reps_left += 1
                     self.feedback.append("LEWA: Powtórzenie niezaliczone!")
 
             # Dodatkowy feedback: Niepełny wyprost na górze
@@ -222,6 +227,7 @@ class Trainer:
                     self.reps_right += 1
                 else:
                     self.stage_right = "up"
+                    self.failed_reps_right += 1
                     self.feedback.append("PRAWA: Powtórzenie niezaliczone!")
 
             # Feedback
@@ -231,8 +237,21 @@ class Trainer:
     def reset(self):
         self.reps_left = 0
         self.reps_right = 0
+        self.failed_reps_left = 0
+        self.failed_reps_right = 0
         self.stage_left = "down"
         self.stage_right = "down"
         self.cheat_left = False
         self.cheat_right = False
         self.feedback = []
+
+    def get_accuracy(self):
+        """srednia % wartosc poprawnosci cwiczen"""
+        total_good = self.reps_left + self.reps_right
+        total_bad = self.failed_reps_left + self.failed_reps_right
+        total_attempts = total_good + total_bad
+
+        if total_attempts == 0:
+            return 100.0  # brak powtorzen = 100% poprawnosci (?)
+
+        return (total_good / total_attempts) * 100.0
