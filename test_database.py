@@ -1,20 +1,27 @@
 from db_manager import DBManager
+import os
 
-print("Testowanie bazy danych...")
+db_file = "fitness_data.db"
+
+if os.path.exists(db_file):
+    os.remove(db_file)
+    print(f"Usunięto stary plik: {db_file}")
+
+print("Inicjalizacja nowej, czystej bazy danych...")
 db = DBManager()
 
-print("Rejestracja 'admin':", db.register_user("admin", "admin123"))
-
-user = db.login_user("admin", "admin123")
-print("Logowanie 'admin':", user)
+user, msg = db.register_user("admin", "admin123")
 
 if user:
-    uid = user[0]
-    db.save_workout(uid, "biceps", 10, 10, 95.0)
-    db.save_workout(uid, "barki", 8, 8, 88.5)
+    print("SUKCES: Utworzono użytkownika 'admin' (ID: 1).")
+    print("Hasło: admin123")
+else:
+    print(f"INFO: {msg}")
 
-    # 4. Odczyt
-    hist = db.get_user_history(uid)
-    print("Historia usera:", hist)
+hist = db.get_user_history(1)
+if len(hist) == 0:
+    print("Baza historii treningów jest PUSTA. Gotowe do testów!")
+else:
+    print("Coś poszło nie tak, w bazie nadal są wpisy.")
 
 db.close()
