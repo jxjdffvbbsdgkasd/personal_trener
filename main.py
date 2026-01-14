@@ -2,12 +2,18 @@ from settings import *
 from classes import *
 from utils import *
 from db_manager import DBManager
+from ui_components import *
 
 pygame.init()
 init_fonts()
 screen = pygame.display.set_mode((WIN_W, WIN_H))
 pygame.display.set_caption("Cyber Trener - System Analizy Ruchu")
 clock = pygame.time.Clock()
+
+app_state = "LOGIN"  # LOGIN, MENU, TRAINING, HISTORY
+current_user_id = None
+current_user_name = ""
+login_message = ""  # do bledow np zle haslo
 
 mp_pose = mp.solutions.pose
 pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
@@ -25,6 +31,35 @@ db = DBManager()
 current_user_id = 1  # narazie na sztywno bo nie ma logowania
 angles = None
 running = True
+
+# konfiguracja ui
+center_x = WIN_W // 2
+center_y = WIN_H // 2
+
+# ekran logowania
+input_login = InputBox(center_x - 100, center_y - 80, 200, 40, font_med)
+input_pass = InputBox(
+    center_x - 100, center_y - 20, 200, 40, font_med, is_password=True
+)
+button_login = Button(
+    center_x - 100, center_y + 50, 200, 50, "Zaloguj", font_med, "LOGIN"
+)
+button_register = Button(
+    center_x - 100, center_y + 110, 200, 50, "Rejestracja", font_med, "REGISTER"
+)
+
+# menu glowne
+button_start_train = Button(
+    center_x - 150, center_y - 50, 300, 60, "Rozpocznij Trening", font_med, "GOTO_TRAIN"
+)
+button_show_hist = Button(
+    center_x - 150, center_y + 30, 300, 60, "Historia Treningów", font_med, "GOTO_HIST"
+)
+button_logout = Button(WIN_W - 120, 20, 100, 40, "Wyloguj", font_small, "LOGOUT")
+
+# przycisk powrotu
+button_back = Button(20, 20, 100, 40, "Powrót", font_small, "BACK")
+
 while running:
 
     # obhsluga zapisu skonczonej serii do bazy (po powiedzeniu "STOP")
