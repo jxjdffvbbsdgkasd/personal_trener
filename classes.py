@@ -1,4 +1,5 @@
 from settings import *
+from datetime import datetime
 
 
 class IPStream:
@@ -255,3 +256,61 @@ class Trainer:
             return 100.0  # brak powtorzen = 100% poprawnosci (?)
 
         return (total_good / total_attempts) * 100.0
+
+
+class WorkoutManager:
+    def __init__(self):
+        # defaultowa liczba serii
+        self.target_sets = {"biceps": 3, "barki": 3}
+
+        # aktualna seria
+        self.sets_done = {"biceps": 0, "barki": 0}
+
+        # generowana po starcie treningu
+        self.session_id = None
+
+    # generuje id sesji, resetuje liczniki serii
+    def start_new_training(self):
+        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        self.sets_done["biceps"] = 0
+        self.sets_done["barki"] = 0
+        print(f" Rozpoczęto nową sesję: {self.session_id}")
+
+    # wyswietla numer ROBIONEJ serii
+    # jesli nie zrobilismy jeszcze zadnej to ofc robimy "1"
+    def get_display_set_number(self, exercise):
+        done = self.sets_done.get(exercise, 0)
+        target = self.target_sets.get(exercise, 3)
+
+        if done >= target:
+            return target  # zeby nie wyswietlalo 4/3 serie xd np tylko 3/3 (albo nwm jakis napis koniec zaplanowanych serii?)
+
+        return done + 1
+
+    # zapisuje w bazie nr serii ktora wlasnie sie skonczyla
+    def get_actual_set_number_for_db(self, exercise):
+        return self.sets_done.get(exercise, 0) + 1
+
+    # pobiera ustalona ilosc serii
+    def get_target_set(self, exercise):
+        return self.target_sets.get(exercise, 3)
+
+    # po komendzie STOP koniec serii
+    def mark_set_complete(self, exercise):
+        if exercise in self.sets_done:
+            if self.sets_done[exercise] < self.target_sets[exercise]:
+                self.sets_done[exercise] += 1
+
+    # czy wszystkie ustawione serie skonczone?
+    def is_workout_complete(self, exercise):
+        done = self.sets_done.get(exercise, 0)
+        target = self.target_sets.get(exercise, 3)
+        return done >= target
+
+    # ustawianie ilosci serii
+    def change_target(self, exercise, delta):
+        new_val = self.target_sets[exercise] + delta
+        if new_val < 1:
+            new_val = 1
+        self.target_sets[exercise] = new_val

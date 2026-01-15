@@ -24,7 +24,7 @@ WIN_H = CAM_H + DASH_H  # Całkowita wysokość (700)
 local_idx = 0
 # ip_url = "http://192.168.33.10:8080/video"
 # ip_url = "http://192.168.254.101:8080/video"
-ip_url = "http://192.168.0.100:4747/video"
+ip_url = "http://192.168.0.102:4747/video"
 
 COLOR_BG = (20, 20, 25)
 COLOR_PANEL = (40, 40, 45)
