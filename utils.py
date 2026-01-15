@@ -67,7 +67,7 @@ def draw_dashboard(
         set_color = (200, 200, 200)
         set_text = f"Seria: {current_set} / {target_set}"
 
-        # info po skonczeniu wszystkich serii
+        # info po skonczeniu wszystkich
         if workout_manager.is_workout_complete(exercise_name):
             set_text += " (UKOŃCZONO)"
             set_color = COLOR_GREEN
@@ -573,15 +573,6 @@ def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
 
 def process_command(voice_control, exercise_type):
     cmd = voice_control.last_command
-    if cmd == "reset" and not voice_control.started:
-        voice_control.last_command = ""
-        exercise_type = "reset"
-        return exercise_type
-
-    elif cmd == "reset" and voice_control.started:
-        print("aby zresetować ćwiczenie, najpierw je zatrzymaj! (stop)")
-        voice_control.last_command = ""
-        return exercise_type
 
     if cmd == "start" and exercise_type == "none":
         print(" Wybierz ćwiczenie najpierw!")
@@ -590,8 +581,10 @@ def process_command(voice_control, exercise_type):
 
     if cmd == "start" and exercise_type != "none":
         voice_control.started = True
+
     elif cmd == "stop":
         voice_control.started = False
+
     elif cmd in exercises and not voice_control.started:
         exercise_type = cmd
 

@@ -222,9 +222,6 @@ while running:
                 trainer.reset()
 
         exercise_type = process_command(voice_control, exercise_type)
-        if exercise_type == "reset":
-            trainer.reset()
-            exercise_type = "none"
 
         for event in events:
             if event.type == pygame.KEYDOWN:

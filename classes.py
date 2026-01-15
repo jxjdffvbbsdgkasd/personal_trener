@@ -42,7 +42,7 @@ class VoiceThread:
 
         # Opcjonalnie: ograniczamy słownik, żeby zwiększyć celność
         # Słowa muszą być małymi literami
-        self.words_list = '["start", "stop", "barki", "biceps", "reset"]'
+        self.words_list = '["start", "stop", "barki", "biceps"]'
         self.recognizer = KaldiRecognizer(self.model, 16000, self.words_list)
 
         self.thread = threading.Thread(target=self.listen_loop, daemon=True)
