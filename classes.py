@@ -313,4 +313,6 @@ class WorkoutManager:
         new_val = self.target_sets[exercise] + delta
         if new_val < 1:
             new_val = 1
+        if new_val > 99:
+            new_val = 99
         self.target_sets[exercise] = new_val

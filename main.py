@@ -34,6 +34,7 @@ exercise_type = "none"
 voice_control = VoiceThread(model_path="vosk-model")
 
 trainer = Trainer()
+workout_manager = WorkoutManager()
 db = DBManager()
 # current_user_id = 1  # narazie na sztywno bo nie ma logowania
 current_user_id = None
@@ -60,11 +61,39 @@ button_register = Button(
 button_start_train = Button(
     center_x - 150, center_y - 50, 300, 60, "Rozpocznij Trening", font_med, "GOTO_TRAIN"
 )
+button_settings = Button(
+    center_x - 150,
+    center_y + 110,
+    300,
+    60,
+    "Dostosuj Trening",
+    font_med,
+    "GOTO_SETTINGS",
+)
 button_show_hist = Button(
     center_x - 150, center_y + 30, 300, 60, "Historia Treningów", font_med, "GOTO_HIST"
 )
 button_logout = Button(WIN_W - 120, 20, 100, 40, "Wyloguj", font_small, "LOGOUT")
 
+# menu dostosowyania treningu
+# biceps
+btn_bic_minus = Button(
+    center_x - 150, center_y - 60, 60, 60, "-", font_big, "BIC_MINUS"
+)
+btn_bic_plus = Button(center_x + 90, center_y - 60, 60, 60, "+", font_big, "BIC_PLUS")
+# pole tekstowe coby nie klikac +/-
+input_bic_sets = InputBox(
+    center_x - 30, center_y - 55, 60, 50, font_big, text="3", centered=True, max_chars=2
+)
+# barki
+btn_bar_minus = Button(
+    center_x - 150, center_y + 60, 60, 60, "-", font_big, "BAR_MINUS"
+)
+btn_bar_plus = Button(center_x + 90, center_y + 60, 60, 60, "+", font_big, "BAR_PLUS")
+# tu tez pole tekstowe jak wyzej -..-
+input_bar_sets = InputBox(
+    center_x - 30, center_y + 65, 60, 50, font_big, text="3", centered=True, max_chars=2
+)
 # przycisk powrotu
 button_back = Button(20, 20, 100, 40, "Powrót", font_small, "BACK")
 
@@ -134,21 +163,28 @@ while running:
 
         button_start_train.draw(screen)
         button_show_hist.draw(screen)
+        button_settings.draw(screen)
         button_logout.draw(screen)
 
         for event in events:
             if button_start_train.is_clicked(event):
                 app_state = "TRAINING"
-                trainer.reset()  # Resetujemy trenera przed startem
+                trainer.reset()  # reset trenera przed startem
+
+                if workout_manager.session_id is None:
+                    workout_manager.start_new_training()
 
             if button_show_hist.is_clicked(event):
                 app_state = "HISTORY"
+
+            if button_settings.is_clicked(event):
+                app_state = "SETTINGS"
 
             if button_logout.is_clicked(event):
                 app_state = "LOGIN"
                 current_user_id = None
                 current_user_name = ""
-                input_pass.text = ""  # Czyścimy hasło
+                input_pass.text = ""  # czyszczenie hasla
                 input_pass.txt_surface = font_med.render("", True, (255, 255, 255))
 
     elif app_state == "TRAINING":
@@ -278,6 +314,93 @@ while running:
         for event in events:
             if button_back.is_clicked(event):
                 app_state = "MENU"
+
+    # STAN USTAWIEN
+    elif app_state == "SETTINGS":
+        draw_text_centered(
+            screen, "Konfiguracja Serii", font_big, COLOR_ACCENT, center_x, 50
+        )
+
+        # biceps
+        y_biceps = center_y - 30
+        draw_text_centered(
+            screen, "BICEPS", font_med, COLOR_TEXT, center_x, y_biceps - 50
+        )
+        btn_bic_minus.draw(screen)
+        btn_bic_plus.draw(screen)
+        input_bic_sets.draw(screen)
+
+        # # wyswietlona aktualna liczba serii
+        # val_biceps = workout_manager.get_target_set("biceps")
+        # draw_text_centered(
+        #     screen, str(val_biceps), font_big, COLOR_TEXT, center_x, y_biceps
+        # )
+
+        # barki
+        y_barki = center_y + 90
+        draw_text_centered(
+            screen, "BARKI", font_med, COLOR_TEXT, center_x, y_barki - 50
+        )
+        btn_bar_minus.draw(screen)
+        btn_bar_plus.draw(screen)
+        input_bar_sets.draw(screen)
+
+        # val_barki = workout_manager.get_target_set("barki")
+        # draw_text_centered(
+        #     screen, str(val_barki), font_big, COLOR_TEXT, center_x, y_barki
+        # )
+
+        # powrot
+        button_back.draw(screen)
+
+        for event in events:
+            if button_back.is_clicked(event):
+                app_state = "MENU"
+
+            # reczne wpisywanie ilosci serii
+            input_bic_sets.handle_event(event)
+            input_bar_sets.handle_event(event)
+            # walidacja czt cyfra
+            if input_bic_sets.text.isdigit() and int(input_bic_sets.text) > 0:
+                workout_manager.target_sets["biceps"] = int(input_bic_sets.text)
+
+            if input_bar_sets.text.isdigit() and int(input_bar_sets.text) > 0:
+                workout_manager.target_sets["barki"] = int(input_bar_sets.text)
+
+            # obsługa przyciskow +/-
+            if btn_bic_minus.is_clicked(event):
+                workout_manager.change_target("biceps", -1)
+                input_bic_sets.text = str(
+                    workout_manager.get_target_set("biceps")
+                )  # synchro z textboxem
+                input_bic_sets.txt_surface = font_big.render(
+                    input_bic_sets.text, True, (255, 255, 255)
+                )  # aktualizacja grafiki
+            if btn_bic_plus.is_clicked(event):
+                workout_manager.change_target("biceps", 1)
+                input_bic_sets.text = str(
+                    workout_manager.get_target_set("biceps")
+                )  # synchro
+                input_bic_sets.txt_surface = font_big.render(
+                    input_bic_sets.text, True, (255, 255, 255)
+                )  # refresh grafiki
+
+            if btn_bar_minus.is_clicked(event):
+                workout_manager.change_target("barki", -1)
+                input_bar_sets.text = str(
+                    workout_manager.get_target_set("barki")
+                )  # synchro
+                input_bar_sets.txt_surface = font_big.render(
+                    input_bar_sets.text, True, (255, 255, 255)
+                )  # odswiez
+            if btn_bar_plus.is_clicked(event):
+                workout_manager.change_target("barki", 1)
+                input_bar_sets.text = str(
+                    workout_manager.get_target_set("barki")
+                )  # synchro
+                input_bar_sets.txt_surface = font_big.render(
+                    input_bar_sets.text, True, (255, 255, 255)
+                )  # odswiez
 
     pygame.display.flip()
     clock.tick(FPS)

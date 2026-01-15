@@ -8,7 +8,18 @@ COLOR_BUTTON_HOVER = (100, 100, 110)
 
 
 class InputBox:
-    def __init__(self, x, y, w, h, font, text="", is_password=False):
+    def __init__(
+        self,
+        x,
+        y,
+        w,
+        h,
+        font,
+        text="",
+        is_password=False,
+        centered=False,
+        max_chars=None,
+    ):
         self.rect = pygame.Rect(x, y, w, h)
         self.color = COLOR_INACTIVE
         self.text = text
@@ -16,12 +27,18 @@ class InputBox:
         self.txt_surface = self.font.render(text, True, COLOR_TEXT)
         self.active = False
         self.is_password = is_password
+        self.centered = centered
+        self.max_chars = max_chars
+        self.overwrite_mode = False
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # Jeśli kliknięto w prostokąt
+            # kliknieto w prostokąt
             if self.rect.collidepoint(event.pos):
                 self.active = not self.active
+                # pole klikniete wiec nadpisz wartosc w nim nowowpisana
+                if self.active:
+                    self.overwrite_mode = True
             else:
                 self.active = False
             self.color = COLOR_ACTIVE if self.active else COLOR_INACTIVE
@@ -29,22 +46,54 @@ class InputBox:
         if event.type == pygame.KEYDOWN:
             if self.active:
                 if event.key == pygame.K_RETURN:
-                    return self.text  # Zwraca tekst po wciśnięciu Enter
-                elif event.key == pygame.K_BACKSPACE:
-                    self.text = self.text[:-1]
-                else:
-                    self.text += event.unicode
+                    self.active = False
+                    self.color = COLOR_INACTIVE
+                    return self.text
 
-                # Renderowanie tekstu (gwiazdki jeśli hasło)
+                elif event.key == pygame.K_BACKSPACE:
+                    # kasowanie wszystkiego jak klikniemy okienko i backspace
+                    if self.overwrite_mode:
+                        self.text = ""
+                        self.overwrite_mode = False
+                    else:
+                        self.text = self.text[:-1]
+
+                else:
+                    # wpisywanie znakow
+
+                    # tryb zaznacz wszystko
+                    if self.overwrite_mode:
+                        self.text = (
+                            event.unicode
+                        )  # nowa cyfra zastepuje wszystko co bylo
+                        self.overwrite_mode = (
+                            False  # wylaczamy tryb po nadpisaniu juz jedna cyfra
+                        )
+
+                    # limit znaku == 2
+                    elif self.max_chars and len(self.text) >= self.max_chars:
+                        # limit osiagniety? ignoruj
+                        return
+
+                    # zwykle wpisuywanie
+                    else:
+                        self.text += event.unicode
+
                 display_text = "*" * len(self.text) if self.is_password else self.text
                 self.txt_surface = self.font.render(display_text, True, COLOR_TEXT)
         return None
 
     def draw(self, screen):
-        # Rysowanie tekstu
-        screen.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 10))
-        # Rysowanie ramki
+        # ramka
         pygame.draw.rect(screen, self.color, self.rect, 2)
+
+        if self.centered:
+            # srodek prostokata
+            text_rect = self.txt_surface.get_rect(center=self.rect.center)
+            screen.blit(self.txt_surface, text_rect)
+        else:
+            # od lewej standardowo chcemy
+            screen.blit(self.txt_surface, (self.rect.x + 5, self.rect.y + 10))
 
     def get_text(self):
         return self.text
