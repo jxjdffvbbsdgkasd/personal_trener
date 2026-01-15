@@ -192,17 +192,25 @@ while running:
         if voice_control.last_command == "stop" and voice_control.started:
             if exercise_type != "none":
                 acc = trainer.get_accuracy()
+                # pobieramy info potrzebne do zapisania serii
+                session_id = workout_manager.session_id
+                set_num = workout_manager.get_actual_set_number_for_db(exercise_type)
                 print(
                     f"[ZAPIS] Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%"
                 )
 
                 db.save_workout(
                     current_user_id,
+                    session_id,
                     exercise_type,
+                    set_num,
                     trainer.reps_left,
                     trainer.reps_right,
                     acc,
                 )
+
+                # zaliczamy serie w managerze workout'u
+                workout_manager.mark_set_complete(exercise_type)
 
                 # reset licznikow
                 trainer.reset()
@@ -268,7 +276,14 @@ while running:
         screen.blit(pg_frame1, (0, 0))
         screen.blit(pg_frame2, (CAM_W, 0))
 
-        draw_dashboard(screen, exercise_type, voice_control.started, trainer, angles)
+        draw_dashboard(
+            screen,
+            exercise_type,
+            voice_control.started,
+            trainer,
+            angles,
+            workout_manager,
+        )
 
         button_back.draw(screen)
 

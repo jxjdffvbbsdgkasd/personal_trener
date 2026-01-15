@@ -4,11 +4,13 @@ font_big = None
 font_med = None
 font_small = None
 
+
 def init_fonts():
     global font_big, font_med, font_small
     font_big = pygame.font.SysFont("arial", 60, bold=True)
     font_med = pygame.font.SysFont("arial", 30, bold=True)
     font_small = pygame.font.SysFont("consolas", 20)
+
 
 def cv2_to_pygame(frame, width, height):
     frame = cv2.resize(frame, (width, height))
@@ -17,67 +19,146 @@ def cv2_to_pygame(frame, width, height):
     frame = np.transpose(frame, (1, 0, 2))
     return pygame.surfarray.make_surface(frame)
 
+
 def draw_text_centered(surface, text, font, color, center_x, center_y):
-    if font is None: return
+    if font is None:
+        return
     render = font.render(text, True, color)
     rect = render.get_rect(center=(center_x, center_y))
     surface.blit(render, rect)
 
 
-def draw_dashboard(screen, exercise_name, is_running, trainer, angles):
+def draw_dashboard(
+    screen, exercise_name, is_running, trainer, angles, workout_manager=None
+):
     y_start = CAM_H
 
     pygame.draw.rect(screen, COLOR_BG, (0, y_start, WIN_W, DASH_H))
     pygame.draw.line(screen, (80, 80, 80), (0, y_start), (WIN_W, y_start), 2)
 
-    center_x = WIN_W // 2    
+    center_x = WIN_W // 2
     # lewa
     left_center_x = WIN_W // 4
-    
     # prawa
     right_center_x = (WIN_W // 4) * 3
 
     box_width = 320
     box_height = DASH_H - 40
-    
+
     left_box_x = left_center_x - (box_width // 2)
     right_box_x = right_center_x - (box_width // 2)
     box_y = y_start + 20
 
-    draw_text_centered(screen, f"Ćwiczenie: {exercise_name.upper()}", font_med, COLOR_ACCENT, center_x, y_start + 30)
+    draw_text_centered(
+        screen,
+        f"Ćwiczenie: {exercise_name.upper()}",
+        font_med,
+        COLOR_ACCENT,
+        center_x,
+        y_start + 30,
+    )
+
+    # WYSWIETLANIE SERII
+    if workout_manager and exercise_name in ["biceps", "barki"]:
+        current_set = workout_manager.get_display_set_number(exercise_name)
+        target_set = workout_manager.get_target_set(exercise_name)
+
+        # kolor tekstu w trakcie bialy, po zakonczeniu zielony
+        set_color = (200, 200, 200)
+        set_text = f"Seria: {current_set} / {target_set}"
+
+        # info po skonczeniu wszystkich serii
+        if workout_manager.is_workout_complete(exercise_name):
+            set_text += " (UKOŃCZONO)"
+            set_color = COLOR_GREEN
+
+        draw_text_centered(
+            screen, set_text, font_small, set_color, center_x, y_start + 55
+        )
 
     status_msg = "Seria trwa" if is_running else "Oczekiwanie"
     status_col = COLOR_GREEN if is_running else COLOR_RED
 
     # Ramka statusu
-    pygame.draw.rect(screen, status_col, (center_x - 150, y_start + 60, 300, 40), border_radius=10)
-    draw_text_centered(screen, status_msg, font_small, (0, 0, 0), center_x, y_start + 80)
+    pygame.draw.rect(
+        screen, status_col, (center_x - 150, y_start + 75, 300, 40), border_radius=10
+    )
+    draw_text_centered(
+        screen, status_msg, font_small, (0, 0, 0), center_x, y_start + 95
+    )
 
     # Box na Feedback
     if trainer.feedback:
         for i, msg in enumerate(trainer.feedback[:3]):
-            draw_text_centered(screen, msg, font_small, COLOR_RED, center_x, y_start + 140 + (i * 25))
+            draw_text_centered(
+                screen, msg, font_small, COLOR_RED, center_x, y_start + 140 + (i * 25)
+            )
     else:
-        draw_text_centered(screen, "Technika Prawidłowa", font_small, (100, 100, 100), center_x, y_start + 150)
+        draw_text_centered(
+            screen,
+            "Technika Prawidłowa",
+            font_small,
+            (100, 100, 100),
+            center_x,
+            y_start + 150,
+        )
     if angles is None:
         return
+
     # lewa
-    pygame.draw.rect(screen, COLOR_PANEL, (left_box_x, box_y, box_width, box_height), border_radius=15)
-    draw_text_centered(screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50)
-    draw_text_centered(screen, str(trainer.reps_left), font_big, COLOR_ACCENT, left_center_x, y_start + 110)
-    draw_text_centered(screen, "powtórzeń", font_small, (150,150,150), left_center_x, y_start + 150)
+    pygame.draw.rect(
+        screen,
+        COLOR_PANEL,
+        (left_box_x, box_y, box_width, box_height),
+        border_radius=15,
+    )
+    draw_text_centered(
+        screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50
+    )
+    draw_text_centered(
+        screen,
+        str(trainer.reps_left),
+        font_big,
+        COLOR_ACCENT,
+        left_center_x,
+        y_start + 110,
+    )
+    draw_text_centered(
+        screen, "powtórzeń", font_small, (150, 150, 150), left_center_x, y_start + 150
+    )
     ang_l = angles.get("left_elbow")
     val_l = f"{int(ang_l)}°" if ang_l else "--"
-    draw_text_centered(screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_center_x, y_start + 190)
+    draw_text_centered(
+        screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_center_x, y_start + 190
+    )
 
     # prawa
-    pygame.draw.rect(screen, COLOR_PANEL, (right_box_x, box_y, box_width, box_height), border_radius=15)
-    draw_text_centered(screen, "Prawa Ręka", font_med, COLOR_TEXT, right_center_x, y_start + 50)
-    draw_text_centered(screen, str(trainer.reps_right), font_big, COLOR_ACCENT, right_center_x, y_start + 110)
-    draw_text_centered(screen, "powtórzeń", font_small, (150, 150, 150), right_center_x, y_start + 150)
+    pygame.draw.rect(
+        screen,
+        COLOR_PANEL,
+        (right_box_x, box_y, box_width, box_height),
+        border_radius=15,
+    )
+    draw_text_centered(
+        screen, "Prawa Ręka", font_med, COLOR_TEXT, right_center_x, y_start + 50
+    )
+    draw_text_centered(
+        screen,
+        str(trainer.reps_right),
+        font_big,
+        COLOR_ACCENT,
+        right_center_x,
+        y_start + 110,
+    )
+    draw_text_centered(
+        screen, "powtórzeń", font_small, (150, 150, 150), right_center_x, y_start + 150
+    )
     ang_r = angles.get("right_elbow")
     val_r = f"{int(ang_r)}°" if ang_r else "--"
-    draw_text_centered(screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190)
+    draw_text_centered(
+        screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190
+    )
+
 
 def detect_and_draw(frame, model, draw_color=(0, 255, 0)):
     """
@@ -87,23 +168,23 @@ def detect_and_draw(frame, model, draw_color=(0, 255, 0)):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_rgb.flags.writeable = False
     results = model.process(frame_rgb)
-    
+
     if results.pose_landmarks:
         # Definiujemy styl rysowania (kropki i linie w tym samym kolorze)
         # color=(B, G, R), thickness=grubość, circle_radius=promień kropki
         custom_style = mp.solutions.drawing_utils.DrawingSpec(
             color=draw_color, thickness=2, circle_radius=2
         )
-        
+
         # Rysujemy
         mp.solutions.drawing_utils.draw_landmarks(
-            frame, 
-            results.pose_landmarks, 
+            frame,
+            results.pose_landmarks,
             mp.solutions.pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=custom_style,   # Styl kropek
-            connection_drawing_spec=custom_style  # Styl linii
+            landmark_drawing_spec=custom_style,  # Styl kropek
+            connection_drawing_spec=custom_style,  # Styl linii
         )
-        
+
     return frame, results
 
 
@@ -208,7 +289,7 @@ def compute_angles_3d_biceps(results_left, results_right, focal=1.0, baseline=0.
     pts3d = reconstruct_3d(results_left, results_right, focal, baseline)
     angles = {}
     pose = mp.solutions.pose.PoseLandmark
-    
+
     def get_ang(p1, p2, p3):
         if p1.value in pts3d and p2.value in pts3d and p3.value in pts3d:
             return angle_between_3d(pts3d[p1.value], pts3d[p2.value], pts3d[p3.value])
@@ -217,21 +298,32 @@ def compute_angles_3d_biceps(results_left, results_right, focal=1.0, baseline=0.
     # --- PODSTAWOWE KĄTY ---
     # Zgięcie w łokciu (Fleksja)
     angles["left_elbow"] = get_ang(pose.LEFT_SHOULDER, pose.LEFT_ELBOW, pose.LEFT_WRIST)
-    angles["right_elbow"] = get_ang(pose.RIGHT_SHOULDER, pose.RIGHT_ELBOW, pose.RIGHT_WRIST)
-    
+    angles["right_elbow"] = get_ang(
+        pose.RIGHT_SHOULDER, pose.RIGHT_ELBOW, pose.RIGHT_WRIST
+    )
+
     # Swing (Czy łokieć ucieka od ciała w przód/tył/bok - ruch ramienia)
-    angles["left_shoulder_swing"] = get_ang(pose.LEFT_HIP, pose.LEFT_SHOULDER, pose.LEFT_ELBOW)
-    angles["right_shoulder_swing"] = get_ang(pose.RIGHT_HIP, pose.RIGHT_SHOULDER, pose.RIGHT_ELBOW)
-    
+    angles["left_shoulder_swing"] = get_ang(
+        pose.LEFT_HIP, pose.LEFT_SHOULDER, pose.LEFT_ELBOW
+    )
+    angles["right_shoulder_swing"] = get_ang(
+        pose.RIGHT_HIP, pose.RIGHT_SHOULDER, pose.RIGHT_ELBOW
+    )
+
     # --- NOWOŚĆ: WYKRYWANIE "KÓŁEK" (FLARE) ---
     # Sprawdzamy kąt: PrawyBark -> LewyBark -> LewyNadgarstek.
     # Jeśli trzymasz ręce wąsko, kąt ~90 stopni.
     # Jeśli machasz na boki ("ręce na zewnątrz"), kąt rośnie > 110.
-    
-    angles["left_flare"] = get_ang(pose.RIGHT_SHOULDER, pose.LEFT_SHOULDER, pose.LEFT_WRIST)
-    angles["right_flare"] = get_ang(pose.LEFT_SHOULDER, pose.RIGHT_SHOULDER, pose.RIGHT_WRIST)
-    
+
+    angles["left_flare"] = get_ang(
+        pose.RIGHT_SHOULDER, pose.LEFT_SHOULDER, pose.LEFT_WRIST
+    )
+    angles["right_flare"] = get_ang(
+        pose.LEFT_SHOULDER, pose.RIGHT_SHOULDER, pose.RIGHT_WRIST
+    )
+
     return angles
+
 
 def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline=0.6):
     """
@@ -240,10 +332,10 @@ def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline
     """
     pts3d = reconstruct_3d(results_left, results_right, focal=focal, baseline=baseline)
     angles = {}
-    
+
     # Enumy MediaPipe
     Pose = mp.solutions.pose.PoseLandmark
-    
+
     # Funkcja pomocnicza do bezpiecznego liczenia
     def get_ang(p1, p2, p3):
         if p1.value in pts3d and p2.value in pts3d and p3.value in pts3d:
@@ -252,13 +344,19 @@ def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline
 
     # 1. KĄT WZNOSU RAMIENIA (Biodro -> Bark -> Łokieć)
     # To nam mówi, czy ręka jest na górze (ok 170-180) czy na dole (ok 90)
-    angles["left_shoulder_lift"] = get_ang(Pose.LEFT_HIP, Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW)
-    angles["right_shoulder_lift"] = get_ang(Pose.RIGHT_HIP, Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW)
+    angles["left_shoulder_lift"] = get_ang(
+        Pose.LEFT_HIP, Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW
+    )
+    angles["right_shoulder_lift"] = get_ang(
+        Pose.RIGHT_HIP, Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW
+    )
 
     # 2. KĄT WYPROSTU W ŁOKCIU (Bark -> Łokieć -> Nadgarstek)
     # To nam mówi, czy "dopchnęliśmy" ruch (wyprost > 160)
     angles["left_elbow"] = get_ang(Pose.LEFT_SHOULDER, Pose.LEFT_ELBOW, Pose.LEFT_WRIST)
-    angles["right_elbow"] = get_ang(Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW, Pose.RIGHT_WRIST)
+    angles["right_elbow"] = get_ang(
+        Pose.RIGHT_SHOULDER, Pose.RIGHT_ELBOW, Pose.RIGHT_WRIST
+    )
 
     return angles
 
@@ -450,14 +548,17 @@ def draw_angles_on_frames(frame_left, frame_right, results_left, results_right, 
             y_offset=50,
         )
 
+
 def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
     r = sr.Recognizer()
     mic = sr.Microphone(device_index=1, sample_rate=48000)
     try:
         with mic as source:
             print("Listening for exercise name (say 'barki' or 'biceps')...")
-            audio = r.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
-        text = r.recognize_google(audio, show_all=False,language='pl-PL')
+            audio = r.listen(
+                source, timeout=timeout, phrase_time_limit=phrase_time_limit
+            )
+        text = r.recognize_google(audio, show_all=False, language="pl-PL")
         if not text:
             return None
         text = text.lower()
@@ -469,7 +570,8 @@ def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
         pass
     return None
 
-def process_command(voice_control,exercise_type):    
+
+def process_command(voice_control, exercise_type):
     cmd = voice_control.last_command
     if cmd == "reset" and not voice_control.started:
         voice_control.last_command = ""
@@ -480,19 +582,18 @@ def process_command(voice_control,exercise_type):
         print("aby zresetować ćwiczenie, najpierw je zatrzymaj! (stop)")
         voice_control.last_command = ""
         return exercise_type
-    
 
     if cmd == "start" and exercise_type == "none":
         print(" Wybierz ćwiczenie najpierw!")
         voice_control.last_command = ""
         return exercise_type
-    
-    if cmd == 'start' and exercise_type != "none":
+
+    if cmd == "start" and exercise_type != "none":
         voice_control.started = True
-    elif cmd == 'stop':
+    elif cmd == "stop":
         voice_control.started = False
     elif cmd in exercises and not voice_control.started:
         exercise_type = cmd
-    
+
     voice_control.last_command = ""
     return exercise_type
