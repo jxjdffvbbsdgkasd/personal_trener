@@ -157,6 +157,20 @@ while running:
                 else:
                     ok, msg = db.register_user(login, password)
                     login_message = msg
+                    if ok:
+                        # uzytkownik od razu zalogowany tym czym sie zarejestrowal
+                        user = db.login_user(login, password)
+                        if user:
+                            current_user_id = user[0]
+                            current_user_name = user[1]
+                            app_state = "MENU"
+                            login_message = ""
+                            print(f"Zarejestrowano i zalogowano: {current_user_name}")
+
+                            input_pass.text = ""
+                            input_pass.txt_surface = font_med.render(
+                                "", True, (255, 255, 255)
+                            )
 
     # STAN MENU GLOWNEGO
     elif app_state == "MENU":
