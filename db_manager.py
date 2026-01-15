@@ -7,8 +7,8 @@ DB_NAME = "fitness_data.db"
 
 class DBManager:
     def __init__(self):
-        # check_same_thread=False jest potrzebne, bo będziemy (później)
-        # zapisywać do bazy z wątku głównego lub wątku VoiceThread
+        # check_same_thread=False jest potrzebne, bo zapisujemy
+        # do bazy z wątku głównego lub wątku VoiceThread
         self.conn = sqlite3.connect(DB_NAME, check_same_thread=False)
         self.cursor = self.conn.cursor()
         self.create_tables()
@@ -33,7 +33,9 @@ class DBManager:
             CREATE TABLE IF NOT EXISTS workout_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
+                session_id TEXT,
                 exercise_type TEXT,
+                set_number INTEGER,
                 reps_left INTEGER,
                 reps_right INTEGER,
                 correctness_percent REAL,
@@ -71,28 +73,74 @@ class DBManager:
             return user  # Zwraca (id, username)
         return None
 
-    def save_workout(self, user_id, exercise_type, reps_left, reps_right, correctness):
+    def save_workout(
+        self,
+        user_id,
+        session_id,
+        exercise_type,
+        set_number,
+        reps_left,
+        reps_right,
+        correctness,
+    ):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.cursor.execute(
             """
-            INSERT INTO workout_sessions (user_id, exercise_type, reps_left, reps_right, correctness_percent, date_time)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO workout_sessions 
+            (user_id, session_id, exercise_type, set_number, reps_left, reps_right, correctness_percent, date_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-            (user_id, exercise_type, reps_left, reps_right, correctness, timestamp),
+            (
+                user_id,
+                session_id,
+                exercise_type,
+                set_number,
+                reps_left,
+                reps_right,
+                correctness,
+                timestamp,
+            ),
         )
         self.conn.commit()
-        print(f" [DB] Zapisano trening dla ID {user_id}: {exercise_type}")
+        print(f" [DB] Zapisano serię {set_number} dla {exercise_type}")
 
     def get_user_history(self, user_id):
-        # Pobieramy ostatnie 10 treningów
+        # surowe dane z sesji, potem ogarniane sa w ui
         self.cursor.execute(
             """
-            SELECT date_time, exercise_type, reps_left, reps_right, correctness_percent 
+            SELECT date_time, exercise_type, reps_left, reps_right, correctness_percent, session_id, set_number
             FROM workout_sessions 
             WHERE user_id=? 
-            ORDER BY date_time DESC LIMIT 10
+            ORDER BY date_time DESC
         """,
             (user_id,),
+        )
+        return self.cursor.fetchall()
+
+    # pobieranie unikalnych sesji do listy w historii
+    def get_unique_sessions(self, user_id):
+        self.cursor.execute(
+            """
+            SELECT DISTINCT session_id, date_time 
+            FROM workout_sessions 
+            WHERE user_id=? 
+            GROUP BY session_id 
+            ORDER BY date_time DESC
+        """,
+            (user_id,),
+        )
+        return self.cursor.fetchall()
+
+    # szczegoly konkretnej sesji
+    def get_session_details(self, session_id):
+        self.cursor.execute(
+            """
+            SELECT exercise_type, set_number, reps_left, reps_right, correctness_percent
+            FROM workout_sessions
+            WHERE session_id=?
+            ORDER BY date_time ASC
+        """,
+            (session_id,),
         )
         return self.cursor.fetchall()
 
