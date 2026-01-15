@@ -27,7 +27,8 @@ pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=
 pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 cap_local = cv2.VideoCapture(local_idx)
-cam_ip = IPStream(ip_url)
+# cam_ip = IPStream(ip_url)
+cam_ip = None
 
 print("Wybierz ćwiczenie (biceps albo barki)")
 exercise_type = "none"
@@ -176,6 +177,11 @@ while running:
                 if workout_manager.session_id is None:
                     workout_manager.start_new_training()
 
+                # podczas "siedzenia" w menu kamerka sie wylacza, test czy to naprawi blad?
+                if cam_ip is None:
+                    print(" Nawiązywanie połączenia z kamerą IP..")
+                    cam_ip = IPStream(ip_url)
+
             if button_show_hist.is_clicked(event):
                 app_state = "HISTORY"
 
@@ -197,9 +203,7 @@ while running:
                 # pobieramy info potrzebne do zapisania serii
                 session_id = workout_manager.session_id
                 set_num = workout_manager.get_actual_set_number_for_db(exercise_type)
-                print(
-                    f"[ZAPIS] Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%"
-                )
+                print(f" Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%")
 
                 db.save_workout(
                     current_user_id,
@@ -233,8 +237,16 @@ while running:
                 # voice_control.stop()  # ubicie watku do komend glosowych, zakomentowane bo psuje xd
                 exercise_type = "none"
 
+                if cam_ip:
+                    cam_ip.release()
+                    cam_ip = None
+                    print(" Rozlaczono z kamera IP")
+
         ret1, frame1 = cap_local.read()
-        ret2, frame2 = cam_ip.read()
+        if cam_ip:
+            ret2, frame2 = cam_ip.read()
+        else:
+            ret2, frame2 = False, None
 
         # Obsługa błędów kamer (pusta klatka)
         if not ret1:
