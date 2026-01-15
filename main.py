@@ -35,6 +35,8 @@ voice_control = VoiceThread(model_path="vosk-model")
 
 trainer = Trainer()
 workout_manager = WorkoutManager()
+selected_session_id = None  # przegladana aktualnie sesja w historii
+session_buttons = []  # lista przyciskow z datami treningow
 db = DBManager()
 # current_user_id = 1  # narazie na sztywno bo nie ma logowania
 current_user_id = None
@@ -290,45 +292,107 @@ while running:
     # STAN HISTORII
     elif app_state == "HISTORY":
         draw_text_centered(
-            screen, "Historia Treningów", font_big, COLOR_ACCENT, center_x, 50
+            screen, "Wybierz Trening", font_big, COLOR_ACCENT, center_x, 50
         )
+        if not session_buttons:
+            raw_sessions = db.get_unique_sessions(current_user_id)
+            start_y = 120
+            for i, sess in enumerate(raw_sessions):
+                s_id = sess[0]
+                s_date = sess[1]
+                label = f"Trening: {s_date[:-3]}"
 
-        history = db.get_user_history(current_user_id)
+                btn = Button(
+                    center_x - 150, start_y + (i * 70), 300, 50, label, font_small, s_id
+                )
+                session_buttons.append(btn)
 
-        y_pos = 120
-        # Nagłówki tabeli
-        headers = (
-            f"{'Data':<16}   {'Typ':<8}   {'Lewa':<5}   {'Prawa':<5}   {'Poprawność'}"
-        )
-        draw_text_centered(
-            screen, headers, font_small, (200, 200, 200), center_x, y_pos
-        )
-        pygame.draw.line(
-            screen,
-            (100, 100, 100),
-            (center_x - 350, y_pos + 15),
-            (center_x + 350, y_pos + 15),
-        )
-
-        y_pos += 40
-        if not history:
+        if not session_buttons:
             draw_text_centered(
-                screen, "Brak treningów.", font_med, COLOR_TEXT, center_x, y_pos + 50
+                screen,
+                "Brak zapisanych treningów.",
+                font_med,
+                COLOR_TEXT,
+                center_x,
+                150,
             )
         else:
-            for row in history:
-                # row = (date, type, l, r, acc)
-                date_short = row[0][5:-3]  # (MM-DD HH:MM)
-                line = f"{date_short:<16}   {row[1]:<8}   {row[2]:<5}   {row[3]:<5}   {row[4]:.1f}%"
-                draw_text_centered(
-                    screen, line, font_small, COLOR_TEXT, center_x, y_pos
-                )
-                y_pos += 30
+            for btn in session_buttons:
+                btn.draw(screen)
 
         button_back.draw(screen)
+
         for event in events:
             if button_back.is_clicked(event):
                 app_state = "MENU"
+                session_buttons = []
+
+            for btn in session_buttons:
+                if btn.is_clicked(event):
+                    selected_session_id = btn.action_code  # id sesji tu trzymamy
+                    app_state = "HISTORY_DETAILS"  # idziemy do szczegolow
+
+    # STAN SZCZEGOLY TRRNINGU
+    elif app_state == "HISTORY_DETAILS":
+        draw_text_centered(
+            screen, "Szczegóły Treningu", font_big, COLOR_ACCENT, center_x, 50
+        )
+
+        # szczegoly dla wybanego id
+        rows = db.get_session_details(selected_session_id)
+
+        biceps_data = [r for r in rows if r[0] == "biceps"]
+        barki_data = [r for r in rows if r[0] == "barki"]
+
+        y_pos = 110
+
+        # biceps
+        if biceps_data:
+            draw_text_centered(
+                screen, "--- BICEPS ---", font_med, COLOR_ACCENT, center_x, y_pos
+            )
+            y_pos += 35
+            # Nagłówek tabelki
+            headers = f"{'Seria':<6} {'Lewa':<6} {'Prawa':<6} {'Poprawność'}"
+            draw_text_centered(
+                screen, headers, font_small, (150, 150, 150), center_x, y_pos
+            )
+            y_pos += 25
+
+            for row in biceps_data:
+                # row: (type, set_num, l, r, acc)
+                line = f"Nr {row[1]:<5} {row[2]:<8} {row[3]:<8} {row[4]:.1f}%"
+                draw_text_centered(
+                    screen, line, font_small, COLOR_TEXT, center_x, y_pos
+                )
+                y_pos += 25
+
+            y_pos += 20
+
+        # barki
+        if barki_data:
+            draw_text_centered(
+                screen, "--- BARKI ---", font_med, COLOR_ACCENT, center_x, y_pos
+            )
+            y_pos += 35
+            headers = f"{'Seria':<6} {'Lewa':<6} {'Prawa':<6} {'Poprawność'}"
+            draw_text_centered(
+                screen, headers, font_small, (150, 150, 150), center_x, y_pos
+            )
+            y_pos += 25
+
+            for row in barki_data:
+                line = f"Nr {row[1]:<5} {row[2]:<8} {row[3]:<8} {row[4]:.1f}%"
+                draw_text_centered(
+                    screen, line, font_small, COLOR_TEXT, center_x, y_pos
+                )
+                y_pos += 25
+
+        button_back.draw(screen)
+
+        for event in events:
+            if button_back.is_clicked(event):
+                app_state = "HISTORY"
 
     # STAN USTAWIEN
     elif app_state == "SETTINGS":
