@@ -7,7 +7,9 @@ class IPStream:
         self.cap = cv2.VideoCapture(url)
         self.frame = np.zeros((480, 640, 3), np.uint8)
         self.running = True
-        threading.Thread(target=self.update, daemon=True).start()
+        # threading.Thread(target=self.update, daemon=True).start()
+        self.thread = threading.Thread(target=self.update, daemon=True)
+        self.thread.start()
 
     def update(self):
         while self.running:
@@ -20,6 +22,8 @@ class IPStream:
 
     def release(self):
         self.running = False
+        if self.thread.is_alive():
+            self.thread.join(timeout=1.0)
         self.cap.release()
 
 
