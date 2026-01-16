@@ -602,7 +602,7 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
             and not workout_manager.is_workout_complete(exercise_type)
         ):
 
-            print(f" [BLOKADA] Ukończ serie dla '{exercise_type}' lub powiedz 'reset'!")
+            print(f" [BLOKADA] Ukończ serie dla '{exercise_type}'!")
             trainer.system_message.append(f"Dokończ serie dla '{exercise_type}'!")
         else:
             exercise_type = cmd

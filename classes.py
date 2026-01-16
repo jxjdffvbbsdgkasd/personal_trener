@@ -7,7 +7,6 @@ class IPStream:
         self.cap = cv2.VideoCapture(url)
         self.frame = np.zeros((480, 640, 3), np.uint8)
         self.running = True
-        # threading.Thread(target=self.update, daemon=True).start()
         self.thread = threading.Thread(target=self.update, daemon=True)
         self.thread.start()
 
