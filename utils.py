@@ -10,6 +10,7 @@ def init_fonts():
     font_big = pygame.font.SysFont("arial", 60, bold=True)
     font_med = pygame.font.SysFont("arial", 30, bold=True)
     font_small = pygame.font.SysFont("consolas", 20)
+    return font_big, font_med, font_small
 
 
 def cv2_to_pygame(frame, width, height):
@@ -588,7 +589,8 @@ def process_command(voice_control, exercise_type):
     elif cmd in exercises and not voice_control.started:
         exercise_type = cmd
 
-    voice_control.last_command = ""
+    if cmd != "reset":
+        voice_control.last_command = ""
     return exercise_type
 
 

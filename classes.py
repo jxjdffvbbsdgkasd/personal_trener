@@ -46,7 +46,7 @@ class VoiceThread:
 
         # Opcjonalnie: ograniczamy słownik, żeby zwiększyć celność
         # Słowa muszą być małymi literami
-        self.words_list = '["start", "stop", "barki", "biceps"]'
+        self.words_list = '["start", "stop", "barki", "biceps", "reset"]'
         self.recognizer = KaldiRecognizer(self.model, 16000, self.words_list)
 
         self.thread = threading.Thread(target=self.listen_loop, daemon=True)
@@ -292,7 +292,7 @@ class WorkoutManager:
         if done >= target:
             return target  # zeby nie wyswietlalo 4/3 serie xd np tylko 3/3 (albo nwm jakis napis koniec zaplanowanych serii?)
 
-        return done + 1
+        return done
 
     # zapisuje w bazie nr serii ktora wlasnie sie skonczyla
     def get_actual_set_number_for_db(self, exercise):
@@ -322,6 +322,16 @@ class WorkoutManager:
         if new_val > 99:
             new_val = 99
         self.target_sets[exercise] = new_val
+
+    def reset_targets(self, cmd, started, exercise): # nie resetuje przez zmiane cwiczenia nw
+
+        # resrt obecnych serii przez reset albo jak jest stop i zmieniasz czwiczenie
+        if cmd == "reset" or ((not started) and (cmd in exercises)):
+            if self.sets_done[exercise] != self.sets_done[exercise]:
+                #nw w sumie czy resetowac jak nie skonczyl wszystkich serii
+                print(" nie skonczyles wszystkich serii!!!!!!!!!!!!!!!! zakaz resetowania") # nie dziala jak cos - do naprawy (nie printuje sie wcale)
+            else:
+                self.sets_done = {"biceps": 0, "barki": 0}
 
 
 # stan aplikacji zamiast zmiennych globalnych w main
