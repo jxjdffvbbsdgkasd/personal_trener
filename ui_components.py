@@ -1,10 +1,12 @@
 import pygame
-
-COLOR_INACTIVE = pygame.Color("lightskyblue3")
-COLOR_ACTIVE = pygame.Color("dodgerblue2")
-COLOR_TEXT = (255, 255, 255)
-COLOR_BUTTON_DEF = (70, 70, 80)
-COLOR_BUTTON_HOVER = (100, 100, 110)
+from settings import (
+    COLOR_INACTIVE,
+    COLOR_ACTIVE,
+    COLOR_TEXT,
+    COLOR_BUTTON_DEF,
+    COLOR_BUTTON_HOVER,
+    COLOR_BUTTON_TEXT,
+)
 
 
 class InputBox:
@@ -24,7 +26,7 @@ class InputBox:
         self.color = COLOR_INACTIVE
         self.text = text
         self.font = font
-        self.txt_surface = self.font.render(text, True, COLOR_TEXT)
+        self.txt_surface = self.font.render(text, True, COLOR_BUTTON_TEXT)
         self.active = False
         self.is_password = is_password
         self.centered = centered
@@ -80,7 +82,9 @@ class InputBox:
                         self.text += event.unicode
 
                 display_text = "*" * len(self.text) if self.is_password else self.text
-                self.txt_surface = self.font.render(display_text, True, COLOR_TEXT)
+                self.txt_surface = self.font.render(
+                    display_text, True, COLOR_BUTTON_TEXT
+                )
         return None
 
     def draw(self, screen):
@@ -117,7 +121,7 @@ class Button:
 
         pygame.draw.rect(screen, self.color, self.rect, border_radius=10)
 
-        text_surf = self.font.render(self.text, True, COLOR_TEXT)
+        text_surf = self.font.render(self.text, True, COLOR_BUTTON_TEXT)
         text_rect = text_surf.get_rect(center=self.rect.center)
         screen.blit(text_surf, text_rect)
 

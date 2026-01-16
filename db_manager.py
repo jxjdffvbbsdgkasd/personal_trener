@@ -44,6 +44,18 @@ class DBManager:
             )
         """
         )
+
+        # tabela do trzymania ustawien uzytkownika
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id INTEGER PRIMARY KEY,
+                biceps_sets INTEGER NOT NULL,
+                shoulders_sets INTEGER NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
         self.conn.commit()
 
     def hash_password(self, password):
@@ -103,6 +115,32 @@ class DBManager:
         )
         self.conn.commit()
         print(f" [DB] Zapisano serię {set_number} dla {exercise_type}")
+
+    # zapis ustawien uzytkownika
+    def save_user_settings(self, user_id, biceps_sets, shoulders_sets):
+        self.cursor.execute(
+            """
+            INSERT INTO user_settings (user_id, biceps_sets, shoulders_sets)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                biceps_sets=excluded.biceps_sets,
+                shoulders_sets=excluded.shoulders_sets
+            """,
+            (user_id, biceps_sets, shoulders_sets),
+        )
+        self.conn.commit()
+        print(f"Zapisano ustawienia dla użytkownika ID: {user_id}")
+
+    # pobieranie ustawien uzytkownika
+    def get_user_settings(self, user_id):
+        self.cursor.execute(
+            "SELECT biceps_sets, shoulders_sets FROM user_settings WHERE user_id=?",
+            (user_id,),
+        )
+        settings = self.cursor.fetchone()
+        if settings:
+            return {"biceps": settings[0], "barki": settings[1]}
+        return None
 
     def get_user_history(self, user_id):
         # surowe dane z sesji, potem ogarniane sa w ui

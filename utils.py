@@ -590,3 +590,22 @@ def process_command(voice_control, exercise_type):
 
     voice_control.last_command = ""
     return exercise_type
+
+
+# pomocnicza funkcje do obslugi przyciskow +/- aby pozbyc sie powtorzen
+# pomocnicza do aktualizacji grafiki
+def update_settings_input(ui_input, font, new_text):
+    ui_input.text = new_text
+    ui_input.txt_surface = font.render(new_text, True, COLOR_TEXT)
+
+
+# pomocnicza do aktualizacji danych w workout managerze
+def handle_settings_change(workout_manager, ui, font, exercise, delta):
+    workout_manager.change_target(exercise, delta)
+
+    new_text = str(workout_manager.get_target_set(exercise))
+
+    input_box_key = f"inp_{exercise[:3]}"
+    input_box = ui[input_box_key]
+
+    update_settings_input(input_box, font, new_text)

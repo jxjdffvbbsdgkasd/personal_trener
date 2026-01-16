@@ -1,3 +1,4 @@
+from ui_builder import build_ui
 from settings import *
 from classes import *
 from utils import *
@@ -6,9 +7,7 @@ from db_manager import DBManager
 from ui_components import *
 
 pygame.init()
-init_fonts()
-
-# czcionki z utilsow
+utils.init_fonts()
 font_big = utils.font_big
 font_med = utils.font_med
 font_small = utils.font_small
@@ -17,175 +16,138 @@ screen = pygame.display.set_mode((WIN_W, WIN_H))
 pygame.display.set_caption("Cyber Trener - System Analizy Ruchu")
 clock = pygame.time.Clock()
 
-app_state = "LOGIN"  # LOGIN, MENU, TRAINING, HISTORY
-current_user_id = None
-current_user_name = ""
-login_message = ""  # do bledow np zle haslo
-
+# kamery
 mp_pose = mp.solutions.pose
 pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 cap_local = cv2.VideoCapture(local_idx)
-# cam_ip = IPStream(ip_url)
 cam_ip = None
 
 print("Wybierz ćwiczenie (biceps albo barki)")
-exercise_type = "none"
 voice_control = VoiceThread(model_path="vosk-model")
 
+game_state = GameState()
 trainer = Trainer()
 workout_manager = WorkoutManager()
-selected_session_id = None  # przegladana aktualnie sesja w historii
-session_buttons = []  # lista przyciskow z datami treningow
 db = DBManager()
-# current_user_id = 1  # narazie na sztywno bo nie ma logowania
-current_user_id = None
 angles = None
-running = True
 
-# konfiguracja ui
-center_x = WIN_W // 2
-center_y = WIN_H // 2
+# budowa ui
+ui = build_ui(CENTER_X, CENTER_Y, font_big, font_med, font_small)
 
-# ekran logowania
-input_login = InputBox(center_x - 100, center_y - 80, 200, 40, font_med)
-input_pass = InputBox(
-    center_x - 100, center_y - 20, 200, 40, font_med, is_password=True
-)
-button_login = Button(
-    center_x - 100, center_y + 50, 200, 50, "Zaloguj", font_med, "LOGIN"
-)
-button_register = Button(
-    center_x - 100, center_y + 110, 200, 50, "Rejestracja", font_med, "REGISTER"
-)
-
-# menu glowne
-button_start_train = Button(
-    center_x - 150, center_y - 50, 300, 60, "Rozpocznij Trening", font_med, "GOTO_TRAIN"
-)
-button_settings = Button(
-    center_x - 150,
-    center_y + 110,
-    300,
-    60,
-    "Dostosuj Trening",
-    font_med,
-    "GOTO_SETTINGS",
-)
-button_show_hist = Button(
-    center_x - 150, center_y + 30, 300, 60, "Historia Treningów", font_med, "GOTO_HIST"
-)
-button_logout = Button(WIN_W - 120, 20, 100, 40, "Wyloguj", font_small, "LOGOUT")
-
-# menu dostosowyania treningu
-# biceps
-btn_bic_minus = Button(
-    center_x - 150, center_y - 60, 60, 60, "-", font_big, "BIC_MINUS"
-)
-btn_bic_plus = Button(center_x + 90, center_y - 60, 60, 60, "+", font_big, "BIC_PLUS")
-# pole tekstowe coby nie klikac +/-
-input_bic_sets = InputBox(
-    center_x - 30, center_y - 55, 60, 50, font_big, text="3", centered=True, max_chars=2
-)
-# barki
-btn_bar_minus = Button(
-    center_x - 150, center_y + 60, 60, 60, "-", font_big, "BAR_MINUS"
-)
-btn_bar_plus = Button(center_x + 90, center_y + 60, 60, 60, "+", font_big, "BAR_PLUS")
-# tu tez pole tekstowe jak wyzej -..-
-input_bar_sets = InputBox(
-    center_x - 30, center_y + 65, 60, 50, font_big, text="3", centered=True, max_chars=2
-)
-# przycisk powrotu
-button_back = Button(20, 20, 100, 40, "Powrót", font_small, "BACK")
-
-while running:
+while game_state.running:
     screen.fill(COLOR_BG)
 
     # obsluga zdarzen
     events = pygame.event.get()
     for event in events:
         if event.type == pygame.QUIT:
-            running = False
+            game_state.running = False
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
-                running = False
+                game_state.running = False
 
-        # Obsługa wpisywania tekstu tylko w stanie LOGIN
-        if app_state == "LOGIN":
-            input_login.handle_event(event)
-            input_pass.handle_event(event)
+        # obsluga wpisywania tekstu w login i w settings
+        if game_state.state == "LOGIN":
+            ui["input_login"].handle_event(event)
+            ui["input_pass"].handle_event(event)
+        elif game_state.state == "SETTINGS":
+            # reczne wpisywanie ilosci serii
+            ui["inp_bic"].handle_event(event)
+            ui["inp_bar"].handle_event(event)
+
+            # walidacja wpisywania w ustawieniach
+            if ui["inp_bic"].text.isdigit() and int(ui["inp_bic"].text) > 0:
+                workout_manager.target_sets["biceps"] = int(ui["inp_bic"].text)
+            if ui["inp_bar"].text.isdigit() and int(ui["inp_bar"].text) > 0:
+                workout_manager.target_sets["barki"] = int(ui["inp_bar"].text)
 
     # STAN LOGOWANIA
-    if app_state == "LOGIN":
+    if game_state.state == "LOGIN":
         draw_text_centered(
-            screen, "CYBER TRENER - LOGOWANIE", font_big, COLOR_ACCENT, center_x, 100
+            screen, "CYBER TRENER - LOGOWANIE", font_big, COLOR_ACCENT, CENTER_X, 100
         )
 
-        input_login.draw(screen)
-        input_pass.draw(screen)
-        button_login.draw(screen)
-        button_register.draw(screen)
+        ui["input_login"].draw(screen)
+        ui["input_pass"].draw(screen)
+        ui["btn_login"].draw(screen)
+        ui["btn_register"].draw(screen)
 
-        # Komunikaty błędów
-        if login_message:
+        # komunikaty bledow
+        if game_state.login_msg:
             draw_text_centered(
-                screen, login_message, font_small, COLOR_RED, center_x, center_y + 180
+                screen,
+                game_state.login_msg,
+                font_small,
+                COLOR_RED,
+                CENTER_X,
+                CENTER_Y + 180,
             )
 
-        # Logika Przycisków
+        # logika przyciskow
         for event in events:
-            if button_login.is_clicked(event):
-                login = input_login.get_text()
-                password = input_pass.get_text()
-                user = db.login_user(login, password)
+            if ui["btn_login"].is_clicked(event):
+                game_state.login_msg = ""
+                login = ui["input_login"].get_text()
+                pwd = ui["input_pass"].get_text()
+                user = db.login_user(login, pwd)
                 if user:
-                    current_user_id = user[0]
-                    current_user_name = user[1]
-                    app_state = "MENU"
-                    login_message = ""
-                    print(f"Zalogowano: {current_user_name}")
-                else:
-                    login_message = "Błędny login lub hasło!"
+                    game_state.user_id, game_state.user_name = user
+                    # wczytywanie ustawien
+                    settings = db.get_user_settings(game_state.user_id)
+                    if settings:
+                        workout_manager.target_sets = settings
+                        print(f"Wczytano ustawienia dla {game_state.user_name}.")
+                    else:
+                        # jesli nie ma zapisanych to domyslne
+                        workout_manager.target_sets = {"biceps": 3, "barki": 3}
 
-            if button_register.is_clicked(event):
-                login = input_login.get_text()
-                password = input_pass.get_text()
-                if len(password) < 4:
-                    login_message = "Hasło za krótkie (min 4 znaki)"
+                    game_state.state = "MENU"
+                    game_state.login_msg = ""
+                    print(f"Zalogowano: {game_state.user_name}")
                 else:
-                    ok, msg = db.register_user(login, password)
-                    login_message = msg
+                    game_state.login_msg = "Błędny login lub hasło!"
+
+            if ui["btn_register"].is_clicked(event):
+                login = ui["input_login"].get_text()
+                pwd = ui["input_pass"].get_text()
+                if len(pwd) < 4:
+                    game_state.login_msg = "Hasło za krótkie (min 4 znaki)"
+                else:
+                    ok, msg = db.register_user(login, pwd)
+                    game_state.login_msg = msg
                     if ok:
                         # uzytkownik od razu zalogowany tym czym sie zarejestrowal
-                        user = db.login_user(login, password)
+                        user = db.login_user(login, pwd)
                         if user:
-                            current_user_id = user[0]
-                            current_user_name = user[1]
-                            app_state = "MENU"
-                            login_message = ""
-                            print(f"Zarejestrowano i zalogowano: {current_user_name}")
-
-                            input_pass.text = ""
-                            input_pass.txt_surface = font_med.render(
+                            game_state.user_id, game_state.user_name = user
+                            workout_manager.target_sets = {"biceps": 3, "barki": 3}
+                            game_state.state = "MENU"
+                            game_state.login_msg = ""
+                            ui["input_pass"].text = ""
+                            ui["input_pass"].txt_surface = font_med.render(
                                 "", True, (255, 255, 255)
                             )
 
     # STAN MENU GLOWNEGO
-    elif app_state == "MENU":
+    elif game_state.state == "MENU":
         draw_text_centered(
-            screen, f"Witaj, {current_user_name}!", font_big, COLOR_TEXT, center_x, 150
+            screen,
+            f"Witaj, {game_state.user_name}!",
+            font_big,
+            COLOR_TEXT,
+            CENTER_X,
+            150,
         )
-
-        button_start_train.draw(screen)
-        button_show_hist.draw(screen)
-        button_settings.draw(screen)
-        button_logout.draw(screen)
+        ui["btn_start"].draw(screen)
+        ui["btn_hist"].draw(screen)
+        ui["btn_settings"].draw(screen)
+        ui["btn_logout"].draw(screen)
 
         for event in events:
-            if button_start_train.is_clicked(event):
-                app_state = "TRAINING"
+            if ui["btn_start"].is_clicked(event):
+                game_state.state = "TRAINING"
                 trainer.reset()  # reset trenera przed startem
 
                 if workout_manager.session_id is None:
@@ -196,33 +158,42 @@ while running:
                     print(" Nawiązywanie połączenia z kamerą IP..")
                     cam_ip = IPStream(ip_url)
 
-            if button_show_hist.is_clicked(event):
-                app_state = "HISTORY"
+            if ui["btn_hist"].is_clicked(event):
+                game_state.state = "HISTORY"
 
-            if button_settings.is_clicked(event):
-                app_state = "SETTINGS"
+            if ui["btn_settings"].is_clicked(event):
+                game_state.state = "SETTINGS"
+                biceps_text = str(workout_manager.get_target_set("biceps"))
+                update_settings_input(ui["inp_bic"], font_big, biceps_text)
+                barki_text = str(workout_manager.get_target_set("barki"))
+                update_settings_input(ui["inp_bar"], font_big, barki_text)
 
-            if button_logout.is_clicked(event):
-                app_state = "LOGIN"
-                current_user_id = None
-                current_user_name = ""
-                input_pass.text = ""  # czyszczenie hasla
-                input_pass.txt_surface = font_med.render("", True, (255, 255, 255))
+            if ui["btn_logout"].is_clicked(event):
+                game_state.state = "LOGIN"
+                game_state.user_id = None
+                workout_manager.target_sets = {"biceps": 3, "barki": 3}
+                ui["input_pass"].text = ""  # czyszczenie hasla
+                ui["input_pass"].txt_surface = font_med.render(
+                    "", True, (255, 255, 255)
+                )
 
-    elif app_state == "TRAINING":
+    # STAN TRENINGU
+    elif game_state.state == "TRAINING":
         # obhsluga zapisu skonczonej serii do bazy (po powiedzeniu "STOP")
         if voice_control.last_command == "stop" and voice_control.started:
-            if exercise_type != "none":
+            if game_state.exercise_type != "none":
                 acc = trainer.get_accuracy()
                 # pobieramy info potrzebne do zapisania serii
                 session_id = workout_manager.session_id
-                set_num = workout_manager.get_actual_set_number_for_db(exercise_type)
+                set_num = workout_manager.get_actual_set_number_for_db(
+                    game_state.exercise_type
+                )
                 print(f" Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%")
 
                 db.save_workout(
-                    current_user_id,
+                    game_state.user_id,
                     session_id,
-                    exercise_type,
+                    game_state.exercise_type,
                     set_num,
                     trainer.reps_left,
                     trainer.reps_right,
@@ -230,12 +201,14 @@ while running:
                 )
 
                 # zaliczamy serie w managerze workout'u
-                workout_manager.mark_set_complete(exercise_type)
+                workout_manager.mark_set_complete(game_state.exercise_type)
 
                 # reset licznikow
                 trainer.reset()
 
-        exercise_type = process_command(voice_control, exercise_type)
+        game_state.exercise_type = process_command(
+            voice_control, game_state.exercise_type
+        )
 
         for event in events:
             if event.type == pygame.KEYDOWN:
@@ -243,16 +216,17 @@ while running:
                     trainer.reset()  # Reset klawiszem R
 
             # przycisk powrotu
-            if button_back.is_clicked(event):
-                app_state = "MENU"
+            if ui["btn_back"].is_clicked(event):
+                game_state.state = "MENU"
                 # voice_control.stop()  # ubicie watku do komend glosowych, zakomentowane bo psuje xd
-                exercise_type = "none"
+                game_state.exercise_type = "none"
 
-                if cam_ip:
+                if cam_ip is not None:
                     cam_ip.release()
                     cam_ip = None
                     print(" Rozlaczono z kamera IP")
 
+        # odczyt z kamer
         ret1, frame1 = cap_local.read()
         if cam_ip:
             ret2, frame2 = cam_ip.read()
@@ -282,12 +256,12 @@ while running:
         angles = {}
 
         if voice_control.started:
-            if exercise_type == "biceps":
+            if game_state.exercise_type == "biceps":
                 angles = compute_angles_3d_biceps(
                     results1, results2, focal=1.0, baseline=0.6
                 )
                 trainer.process_biceps(angles)
-            elif exercise_type == "barki":
+            elif game_state.exercise_type == "barki":
                 angles = compute_angles_3d_shoulders(
                     results1, results2, focal=1.0, baseline=0.6
                 )
@@ -303,66 +277,73 @@ while running:
 
         draw_dashboard(
             screen,
-            exercise_type,
+            game_state.exercise_type,
             voice_control.started,
             trainer,
             angles,
             workout_manager,
         )
 
-        button_back.draw(screen)
+        ui["btn_back"].draw(screen)
 
     # STAN HISTORII
-    elif app_state == "HISTORY":
+    elif game_state.state == "HISTORY":
         draw_text_centered(
-            screen, "Wybierz Trening", font_big, COLOR_ACCENT, center_x, 50
+            screen, "Wybierz Trening", font_big, COLOR_ACCENT, CENTER_X, 50
         )
-        if not session_buttons:
-            raw_sessions = db.get_unique_sessions(current_user_id)
+        if not game_state.session_buttons:
+            raw_sessions = db.get_unique_sessions(game_state.user_id)
             start_y = 120
             for i, sess in enumerate(raw_sessions):
-                s_id = sess[0]
-                s_date = sess[1]
-                label = f"Trening: {s_date[:-3]}"
+                session_id, session_date = sess
+                label = f"Trening: {session_date[:-3]}"
 
                 btn = Button(
-                    center_x - 150, start_y + (i * 70), 300, 50, label, font_small, s_id
+                    CENTER_X - 150,
+                    start_y + (i * 70),
+                    300,
+                    50,
+                    label,
+                    font_small,
+                    session_id,
                 )
-                session_buttons.append(btn)
+                game_state.session_buttons.append(btn)
 
-        if not session_buttons:
+        if not game_state.session_buttons:
             draw_text_centered(
                 screen,
                 "Brak zapisanych treningów.",
                 font_med,
                 COLOR_TEXT,
-                center_x,
+                CENTER_X,
                 150,
             )
         else:
-            for btn in session_buttons:
+            for btn in game_state.session_buttons:
                 btn.draw(screen)
 
-        button_back.draw(screen)
+        ui["btn_back"].draw(screen)
 
         for event in events:
-            if button_back.is_clicked(event):
-                app_state = "MENU"
-                session_buttons = []
+            if ui["btn_back"].is_clicked(event):
+                game_state.state = "MENU"
+                game_state.session_buttons = []
 
-            for btn in session_buttons:
+            for btn in game_state.session_buttons:
                 if btn.is_clicked(event):
-                    selected_session_id = btn.action_code  # id sesji tu trzymamy
-                    app_state = "HISTORY_DETAILS"  # idziemy do szczegolow
+                    game_state.selected_session_id = (
+                        btn.action_code
+                    )  # id sesji tu trzymamy
+                    game_state.state = "HISTORY_DETAILS"  # idziemy do szczegolow
 
     # STAN SZCZEGOLY TRRNINGU
-    elif app_state == "HISTORY_DETAILS":
+    elif game_state.state == "HISTORY_DETAILS":
         draw_text_centered(
-            screen, "Szczegóły Treningu", font_big, COLOR_ACCENT, center_x, 50
+            screen, "Szczegóły Treningu", font_big, COLOR_ACCENT, CENTER_X, 50
         )
 
         # szczegoly dla wybanego id
-        rows = db.get_session_details(selected_session_id)
+        rows = db.get_session_details(game_state.selected_session_id)
 
         biceps_data = [r for r in rows if r[0] == "biceps"]
         barki_data = [r for r in rows if r[0] == "barki"]
@@ -372,13 +353,13 @@ while running:
         # biceps
         if biceps_data:
             draw_text_centered(
-                screen, "--- BICEPS ---", font_med, COLOR_ACCENT, center_x, y_pos
+                screen, "--- BICEPS ---", font_med, COLOR_ACCENT, CENTER_X, y_pos
             )
             y_pos += 35
             # Nagłówek tabelki
             headers = f"{'Seria':<6} {'Lewa':<6} {'Prawa':<6} {'Poprawność'}"
             draw_text_centered(
-                screen, headers, font_small, (150, 150, 150), center_x, y_pos
+                screen, headers, font_small, (150, 150, 150), CENTER_X, y_pos
             )
             y_pos += 25
 
@@ -386,7 +367,7 @@ while running:
                 # row: (type, set_num, l, r, acc)
                 line = f"Nr {row[1]:<5} {row[2]:<8} {row[3]:<8} {row[4]:.1f}%"
                 draw_text_centered(
-                    screen, line, font_small, COLOR_TEXT, center_x, y_pos
+                    screen, line, font_small, COLOR_TEXT, CENTER_X, y_pos
                 )
                 y_pos += 25
 
@@ -395,120 +376,85 @@ while running:
         # barki
         if barki_data:
             draw_text_centered(
-                screen, "--- BARKI ---", font_med, COLOR_ACCENT, center_x, y_pos
+                screen, "--- BARKI ---", font_med, COLOR_ACCENT, CENTER_X, y_pos
             )
             y_pos += 35
             headers = f"{'Seria':<6} {'Lewa':<6} {'Prawa':<6} {'Poprawność'}"
             draw_text_centered(
-                screen, headers, font_small, (150, 150, 150), center_x, y_pos
+                screen, headers, font_small, (150, 150, 150), CENTER_X, y_pos
             )
             y_pos += 25
 
             for row in barki_data:
                 line = f"Nr {row[1]:<5} {row[2]:<8} {row[3]:<8} {row[4]:.1f}%"
                 draw_text_centered(
-                    screen, line, font_small, COLOR_TEXT, center_x, y_pos
+                    screen, line, font_small, COLOR_TEXT, CENTER_X, y_pos
                 )
                 y_pos += 25
 
-        button_back.draw(screen)
+        ui["btn_back"].draw(screen)
 
         for event in events:
-            if button_back.is_clicked(event):
-                app_state = "HISTORY"
+            if ui["btn_back"].is_clicked(event):
+                game_state.state = "HISTORY"
 
     # STAN USTAWIEN
-    elif app_state == "SETTINGS":
+    elif game_state.state == "SETTINGS":
         draw_text_centered(
-            screen, "Konfiguracja Serii", font_big, COLOR_ACCENT, center_x, 50
+            screen, "Konfiguracja Serii", font_big, COLOR_ACCENT, CENTER_X, 50
         )
 
         # biceps
-        y_biceps = center_y - 30
+        y_biceps = CENTER_Y - 30
         draw_text_centered(
-            screen, "BICEPS", font_med, COLOR_TEXT, center_x, y_biceps - 50
+            screen, "BICEPS", font_med, COLOR_TEXT, CENTER_X, y_biceps - 50
         )
-        btn_bic_minus.draw(screen)
-        btn_bic_plus.draw(screen)
-        input_bic_sets.draw(screen)
-
-        # # wyswietlona aktualna liczba serii
-        # val_biceps = workout_manager.get_target_set("biceps")
-        # draw_text_centered(
-        #     screen, str(val_biceps), font_big, COLOR_TEXT, center_x, y_biceps
-        # )
+        ui["btn_bic_m"].draw(screen)
+        ui["btn_bic_p"].draw(screen)
+        ui["inp_bic"].draw(screen)
 
         # barki
-        y_barki = center_y + 90
+        y_barki = CENTER_Y + 90
         draw_text_centered(
-            screen, "BARKI", font_med, COLOR_TEXT, center_x, y_barki - 50
+            screen, "BARKI", font_med, COLOR_TEXT, CENTER_X, y_barki - 50
         )
-        btn_bar_minus.draw(screen)
-        btn_bar_plus.draw(screen)
-        input_bar_sets.draw(screen)
-
-        # val_barki = workout_manager.get_target_set("barki")
-        # draw_text_centered(
-        #     screen, str(val_barki), font_big, COLOR_TEXT, center_x, y_barki
-        # )
+        ui["btn_bar_m"].draw(screen)
+        ui["btn_bar_p"].draw(screen)
+        ui["inp_bar"].draw(screen)
 
         # powrot
-        button_back.draw(screen)
+        ui["btn_back"].draw(screen)
 
         for event in events:
-            if button_back.is_clicked(event):
-                app_state = "MENU"
+            if ui["btn_back"].is_clicked(event):
+                # zapisanie ustawien przed wyjsciem
+                db.save_user_settings(
+                    game_state.user_id,
+                    workout_manager.target_sets["biceps"],
+                    workout_manager.target_sets["barki"],
+                )
 
-            # reczne wpisywanie ilosci serii
-            input_bic_sets.handle_event(event)
-            input_bar_sets.handle_event(event)
-            # walidacja czt cyfra
-            if input_bic_sets.text.isdigit() and int(input_bic_sets.text) > 0:
-                workout_manager.target_sets["biceps"] = int(input_bic_sets.text)
+                game_state.state = "MENU"
 
-            if input_bar_sets.text.isdigit() and int(input_bar_sets.text) > 0:
-                workout_manager.target_sets["barki"] = int(input_bar_sets.text)
+            # # obsługa przyciskow +/-
+            if ui["btn_bic_m"].is_clicked(event):
+                handle_settings_change(workout_manager, ui, font_big, "biceps", -1)
 
-            # obsługa przyciskow +/-
-            if btn_bic_minus.is_clicked(event):
-                workout_manager.change_target("biceps", -1)
-                input_bic_sets.text = str(
-                    workout_manager.get_target_set("biceps")
-                )  # synchro z textboxem
-                input_bic_sets.txt_surface = font_big.render(
-                    input_bic_sets.text, True, (255, 255, 255)
-                )  # aktualizacja grafiki
-            if btn_bic_plus.is_clicked(event):
-                workout_manager.change_target("biceps", 1)
-                input_bic_sets.text = str(
-                    workout_manager.get_target_set("biceps")
-                )  # synchro
-                input_bic_sets.txt_surface = font_big.render(
-                    input_bic_sets.text, True, (255, 255, 255)
-                )  # refresh grafiki
+            if ui["btn_bic_p"].is_clicked(event):
+                handle_settings_change(workout_manager, ui, font_big, "biceps", 1)
 
-            if btn_bar_minus.is_clicked(event):
-                workout_manager.change_target("barki", -1)
-                input_bar_sets.text = str(
-                    workout_manager.get_target_set("barki")
-                )  # synchro
-                input_bar_sets.txt_surface = font_big.render(
-                    input_bar_sets.text, True, (255, 255, 255)
-                )  # odswiez
-            if btn_bar_plus.is_clicked(event):
-                workout_manager.change_target("barki", 1)
-                input_bar_sets.text = str(
-                    workout_manager.get_target_set("barki")
-                )  # synchro
-                input_bar_sets.txt_surface = font_big.render(
-                    input_bar_sets.text, True, (255, 255, 255)
-                )  # odswiez
+            if ui["btn_bar_m"].is_clicked(event):
+                handle_settings_change(workout_manager, ui, font_big, "barki", -1)
+
+            if ui["btn_bar_p"].is_clicked(event):
+                handle_settings_change(workout_manager, ui, font_big, "barki", 1)
 
     pygame.display.flip()
     clock.tick(FPS)
 
 voice_control.stop()
 cap_local.release()
-cam_ip.release()
+if cam_ip:
+    cam_ip.release()
 db.close()
 pygame.quit()

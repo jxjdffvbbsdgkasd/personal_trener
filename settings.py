@@ -35,3 +35,14 @@ COLOR_RED = (220, 60, 60)
 
 exercises = ["biceps", "barki"]
 state = ["start", "stop"]
+
+# kolory ui
+COLOR_INACTIVE = pygame.Color("lightskyblue3")
+COLOR_ACTIVE = pygame.Color("dodgerblue2")
+COLOR_BUTTON_TEXT = (255, 255, 255)
+COLOR_BUTTON_DEF = (70, 70, 80)
+COLOR_BUTTON_HOVER = (100, 100, 110)
+
+# konfiguracja ui
+CENTER_X = WIN_W // 2
+CENTER_Y = WIN_H // 2

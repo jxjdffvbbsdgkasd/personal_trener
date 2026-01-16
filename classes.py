@@ -75,6 +75,8 @@ class VoiceThread:
                 text = result.get("text", "")
 
                 if text:
+                    # DLA TETSU DIAGNISTYCZNEGO
+                    print(f" [VOSK] Usłyszałem: '{text}'")
                     self.last_command = text
             else:
                 # Tutaj można wyciągać PartialResult(), jeśli chcesz widzieć tekst w trakcie mówienia
@@ -316,3 +318,18 @@ class WorkoutManager:
         if new_val > 99:
             new_val = 99
         self.target_sets[exercise] = new_val
+
+
+# stan aplikacji zamiast zmiennych globalnych w main
+class GameState:
+    def __init__(self):
+        self.state = "LOGIN"
+        self.user_id = None
+        self.user_name = ""
+        self.login_msg = ""
+        self.exercise_type = "none"
+        self.running = True
+
+        # historia
+        self.selected_session_id = None
+        self.session_buttons = []
