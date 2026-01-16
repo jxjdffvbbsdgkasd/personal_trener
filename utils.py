@@ -572,25 +572,55 @@ def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
     return None
 
 
-def process_command(voice_control, exercise_type):
+def process_command(voice_control, exercise_type, workout_manager, trainer):
     cmd = voice_control.last_command
 
-    if cmd == "start" and exercise_type == "none":
-        print(" Wybierz ćwiczenie najpierw!")
-        voice_control.last_command = ""
+    trainer.clear_system_message()
+
+    if not cmd or cmd == "COMMAND_NONE":
         return exercise_type
 
-    if cmd == "start" and exercise_type != "none":
-        voice_control.started = True
+    # obsluga start stop
+    if cmd == "start":
+        if exercise_type == "none":
+            print(" Wybierz ćwiczenie najpierw!")
+            trainer.system_message.append("Najpierw wybierz ćwiczenie!")
+        else:
+            voice_control.started = True
 
     elif cmd == "stop":
         voice_control.started = False
 
+    # zmiana cwiczenia obsluga
     elif cmd in exercises and not voice_control.started:
-        exercise_type = cmd
+        # zakladana jest blokada na reset i zmiane cwiczenia jesli uzytkonik ukonczyl choc 1 serie
+        sets_completed = workout_manager.sets_done.get(exercise_type, 0)
 
-    if cmd != "reset":
-        voice_control.last_command = ""
+        if (
+            exercise_type != "none"
+            and sets_completed > 0
+            and not workout_manager.is_workout_complete(exercise_type)
+        ):
+
+            print(f" [BLOKADA] Ukończ serie dla '{exercise_type}' lub powiedz 'reset'!")
+            trainer.system_message.append(f"Dokończ serie dla '{exercise_type}'!")
+        else:
+            exercise_type = cmd
+            print(f" Zmieniono ćwiczenie na: {cmd}")
+
+    # resetowanie
+    elif cmd == "reset":
+        reset_status = workout_manager.reset_targets(cmd, exercise_type)
+        if reset_status is True:
+            trainer.system_message.append(
+                f"Liczniki dla '{exercise_type}' zresetowane!"
+            )
+        elif reset_status is False:
+            trainer.system_message.append("Dokończ serie, zanim zresetujesz!")
+            trainer.system_message.append("Dasz radę!")
+
+    voice_control.last_command = ""
+
     return exercise_type
 
 

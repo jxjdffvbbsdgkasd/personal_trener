@@ -108,6 +108,8 @@ class Trainer:
         self.cheat_right = False
         # Komunikaty
         self.feedback = []
+        # cos tam motywacja jak chce reset przy niedokonczonym planie (nie wszystkie serie done)
+        self.system_message = []
 
     def process_biceps(self, angles):
         self.feedback = []
@@ -251,6 +253,7 @@ class Trainer:
         self.cheat_left = False
         self.cheat_right = False
         self.feedback = []
+        self.clear_system_message()
 
     def get_accuracy(self):
         """srednia % wartosc poprawnosci cwiczen"""
@@ -262,6 +265,10 @@ class Trainer:
             return 100.0  # brak powtorzen = 100% poprawnosci (?)
 
         return (total_good / total_attempts) * 100.0
+
+    # czysci komunikaty motywacja/systemowe
+    def clear_system_message(self):
+        self.system_message = []
 
 
 class WorkoutManager:
@@ -292,7 +299,7 @@ class WorkoutManager:
         if done >= target:
             return target  # zeby nie wyswietlalo 4/3 serie xd np tylko 3/3 (albo nwm jakis napis koniec zaplanowanych serii?)
 
-        return done
+        return done + 1
 
     # zapisuje w bazie nr serii ktora wlasnie sie skonczyla
     def get_actual_set_number_for_db(self, exercise):
@@ -323,15 +330,24 @@ class WorkoutManager:
             new_val = 99
         self.target_sets[exercise] = new_val
 
-    def reset_targets(self, cmd, started, exercise): # nie resetuje przez zmiane cwiczenia nw
+    # sprawdza czy uzytkownik moze zresetowac serie dla danego cwiczenia
+    def reset_targets(self, cmd, exercise):
+        if cmd == "reset":
+            if exercise == "none":
+                return None
 
-        # resrt obecnych serii przez reset albo jak jest stop i zmieniasz czwiczenie
-        if cmd == "reset" or ((not started) and (cmd in exercises)):
-            if self.sets_done[exercise] != self.sets_done[exercise]:
-                #nw w sumie czy resetowac jak nie skonczyl wszystkich serii
-                print(" nie skonczyles wszystkich serii!!!!!!!!!!!!!!!! zakaz resetowania") # nie dziala jak cos - do naprawy (nie printuje sie wcale)
+            # czy plan tego cwiczenia skonczony?
+            if self.is_workout_complete(exercise):
+                print(f" Ukończono serie dla '{exercise}'. Resetowanie licznika.")
+                self.sets_done[exercise] = 0
+                return True  # reset done
             else:
-                self.sets_done = {"biceps": 0, "barki": 0}
+                print(
+                    f" Użytkownik próbuje zresetować niedokończone serie dla '{exercise}'."
+                )
+                return False  # zakaz
+
+        return None
 
 
 # stan aplikacji zamiast zmiennych globalnych w main

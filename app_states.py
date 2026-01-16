@@ -4,7 +4,19 @@ from ui_components import Button
 from utils import *
 
 
-def handle_login_state(screen, ui, events, game_state, db, workout_manager, font_big, font_med, font_small, CENTER_X, CENTER_Y):
+def handle_login_state(
+    screen,
+    ui,
+    events,
+    game_state,
+    db,
+    workout_manager,
+    font_big,
+    font_med,
+    font_small,
+    CENTER_X,
+    CENTER_Y,
+):
     draw_text_centered(
         screen, "CYBER TRENER - LOGOWANIE", font_big, COLOR_ACCENT, CENTER_X, 100
     )
@@ -25,6 +37,7 @@ def handle_login_state(screen, ui, events, game_state, db, workout_manager, font
         )
 
     for event in events:
+        # obsluga wpisywania tekstu w login i w settings
         if ui["btn_login"].is_clicked(event):
             game_state.login_msg = ""
             login = ui["input_login"].get_text()
@@ -61,10 +74,23 @@ def handle_login_state(screen, ui, events, game_state, db, workout_manager, font
                         game_state.state = "MENU"
                         game_state.login_msg = ""
                         ui["input_pass"].text = ""
-                        ui["input_pass"].txt_surface = font_med.render("", True, (255, 255, 255))
+                        ui["input_pass"].txt_surface = font_med.render(
+                            "", True, (255, 255, 255)
+                        )
 
 
-def handle_menu_state(screen, ui, events, game_state, trainer, workout_manager, cam_ip, font_big, font_med, CENTER_X):
+def handle_menu_state(
+    screen,
+    ui,
+    events,
+    game_state,
+    trainer,
+    workout_manager,
+    cam_ip,
+    font_big,
+    font_med,
+    CENTER_X,
+):
     draw_text_centered(
         screen,
         f"Witaj, {game_state.user_name}!",
@@ -110,13 +136,33 @@ def handle_menu_state(screen, ui, events, game_state, trainer, workout_manager, 
     return cam_ip
 
 
-def handle_training_state(screen, ui, events, game_state, trainer, workout_manager, db, voice_control, cap_local, cam_ip, pose_local, pose_ip, font_big, font_med, font_small, CENTER_X, CENTER_Y):
+def handle_training_state(
+    screen,
+    ui,
+    events,
+    game_state,
+    trainer,
+    workout_manager,
+    db,
+    voice_control,
+    cap_local,
+    cam_ip,
+    pose_local,
+    pose_ip,
+    font_big,
+    font_med,
+    font_small,
+    CENTER_X,
+    CENTER_Y,
+):
     # handle voice STOP
     if voice_control.last_command == "stop" and voice_control.started:
         if game_state.exercise_type != "none":
             acc = trainer.get_accuracy()
             session_id = workout_manager.session_id
-            set_num = workout_manager.get_actual_set_number_for_db(game_state.exercise_type)
+            set_num = workout_manager.get_actual_set_number_for_db(
+                game_state.exercise_type
+            )
             print(f" Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%")
 
             db.save_workout(
@@ -132,10 +178,10 @@ def handle_training_state(screen, ui, events, game_state, trainer, workout_manag
             workout_manager.mark_set_complete(game_state.exercise_type)
             trainer.reset()
 
-    game_state.exercise_type = process_command(voice_control, game_state.exercise_type)
-    
-    workout_manager.reset_targets(voice_control.last_command, voice_control.started,game_state.exercise_type)
-    
+    game_state.exercise_type = process_command(
+        voice_control, game_state.exercise_type, workout_manager, trainer
+    )
+
     for event in events:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
@@ -176,10 +222,14 @@ def handle_training_state(screen, ui, events, game_state, trainer, workout_manag
 
     if voice_control.started:
         if game_state.exercise_type == "biceps":
-            angles = compute_angles_3d_biceps(results1, results2, focal=1.0, baseline=0.6)
+            angles = compute_angles_3d_biceps(
+                results1, results2, focal=1.0, baseline=0.6
+            )
             trainer.process_biceps(angles)
         elif game_state.exercise_type == "barki":
-            angles = compute_angles_3d_shoulders(results1, results2, focal=1.0, baseline=0.6)
+            angles = compute_angles_3d_shoulders(
+                results1, results2, focal=1.0, baseline=0.6
+            )
             trainer.process_shoulders(angles)
 
     screen.fill(COLOR_BG)
@@ -204,7 +254,9 @@ def handle_training_state(screen, ui, events, game_state, trainer, workout_manag
     return cam_ip, angles
 
 
-def handle_history_state(screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X):
+def handle_history_state(
+    screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X
+):
     draw_text_centered(screen, "Wybierz Trening", font_big, COLOR_ACCENT, CENTER_X, 50)
     if not game_state.session_buttons:
         raw_sessions = db.get_unique_sessions(game_state.user_id)
@@ -250,8 +302,12 @@ def handle_history_state(screen, ui, events, game_state, db, font_big, font_med,
                 game_state.state = "HISTORY_DETAILS"
 
 
-def handle_history_details_state(screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X):
-    draw_text_centered(screen, "Szczegóły Treningu", font_big, COLOR_ACCENT, CENTER_X, 50)
+def handle_history_details_state(
+    screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X
+):
+    draw_text_centered(
+        screen, "Szczegóły Treningu", font_big, COLOR_ACCENT, CENTER_X, 50
+    )
 
     rows = db.get_session_details(game_state.selected_session_id)
 
@@ -261,10 +317,14 @@ def handle_history_details_state(screen, ui, events, game_state, db, font_big, f
     y_pos = 110
 
     if biceps_data:
-        draw_text_centered(screen, "--- BICEPS ---", font_med, COLOR_ACCENT, CENTER_X, y_pos)
+        draw_text_centered(
+            screen, "--- BICEPS ---", font_med, COLOR_ACCENT, CENTER_X, y_pos
+        )
         y_pos += 35
         headers = f"{'Seria':<6} {'Lewa':<6} {'Prawa':<6} {'Poprawność'}"
-        draw_text_centered(screen, headers, font_small, (150, 150, 150), CENTER_X, y_pos)
+        draw_text_centered(
+            screen, headers, font_small, (150, 150, 150), CENTER_X, y_pos
+        )
         y_pos += 25
 
         for row in biceps_data:
@@ -275,10 +335,14 @@ def handle_history_details_state(screen, ui, events, game_state, db, font_big, f
         y_pos += 20
 
     if barki_data:
-        draw_text_centered(screen, "--- BARKI ---", font_med, COLOR_ACCENT, CENTER_X, y_pos)
+        draw_text_centered(
+            screen, "--- BARKI ---", font_med, COLOR_ACCENT, CENTER_X, y_pos
+        )
         y_pos += 35
         headers = f"{'Seria':<6} {'Lewa':<6} {'Prawa':<6} {'Poprawność'}"
-        draw_text_centered(screen, headers, font_small, (150, 150, 150), CENTER_X, y_pos)
+        draw_text_centered(
+            screen, headers, font_small, (150, 150, 150), CENTER_X, y_pos
+        )
         y_pos += 25
 
         for row in barki_data:
@@ -293,8 +357,12 @@ def handle_history_details_state(screen, ui, events, game_state, db, font_big, f
             game_state.state = "HISTORY"
 
 
-def handle_settings_state(screen, ui, events, game_state, db, workout_manager, font_big):
-    draw_text_centered(screen, "Konfiguracja Serii", font_big, COLOR_ACCENT, CENTER_X, 50)
+def handle_settings_state(
+    screen, ui, events, game_state, db, workout_manager, font_big
+):
+    draw_text_centered(
+        screen, "Konfiguracja Serii", font_big, COLOR_ACCENT, CENTER_X, 50
+    )
 
     y_biceps = CENTER_Y - 30
     draw_text_centered(screen, "BICEPS", font_med, COLOR_TEXT, CENTER_X, y_biceps - 50)
