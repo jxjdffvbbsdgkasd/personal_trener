@@ -3,6 +3,7 @@ from settings import *
 from classes import *
 from utils import *
 from ui_components import *
+import notification_global as ng
 from app_states import (
     handle_login_state,
     handle_menu_state,
@@ -28,13 +29,13 @@ pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5
 cap_local = cv2.VideoCapture(local_idx)
 cam_ip = None
 
-print("Wybierz ćwiczenie (biceps albo barki)")
+# inicjalizacja klas
 voice_control = VoiceThread(model_path="vosk-model")
-
 game_state = GameState()
 trainer = Trainer()
 workout_manager = WorkoutManager()
 db = DBManager()
+ng.notif = ng.NotificationManager(screen_width=WIN_W, screen_height=WIN_H,default_font=font_big)
 angles = None
 
 # budowa ui
@@ -119,6 +120,7 @@ while game_state.running:
             CENTER_X,
             CENTER_Y,
         )
+        ng.notif.update_and_draw(screen)# rysowanie notyfikacji
 
     # STAN HISTORII
     elif game_state.state == "HISTORY":

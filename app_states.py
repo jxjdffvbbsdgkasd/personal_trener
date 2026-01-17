@@ -115,6 +115,7 @@ def handle_menu_state(
             if cam_ip is None:
                 print(" Nawiązywanie połączenia z kamerą IP..")
                 cam_ip = IPStream(ip_url)
+                ng.notif.add_notification("Wybierz ćwiczenie (biceps albo barki)",duration_seconds=5.0,outline_thickness=2,)
 
         if ui["btn_hist"].is_clicked(event):
             game_state.state = "HISTORY"
@@ -178,9 +179,8 @@ def handle_training_state(
             workout_manager.mark_set_complete(game_state.exercise_type)
             trainer.reset()
 
-    game_state.exercise_type = process_command(
-        voice_control, game_state.exercise_type, workout_manager, trainer
-    )
+    game_state.exercise_type = process_command(voice_control, game_state.exercise_type, workout_manager, trainer)
+    voice_control.last_command = workout_manager.reset_targets(voice_control.last_command, voice_control.started, game_state.exercise_type)
 
     for event in events:
         if event.type == pygame.KEYDOWN:

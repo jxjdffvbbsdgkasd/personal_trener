@@ -1,6 +1,6 @@
 from settings import *
 from datetime import datetime
-
+import notification_global as ng
 
 class IPStream:
     def __init__(self, url):
@@ -43,19 +43,19 @@ class VoiceThread:
 
         self.model = Model(model_path)
 
-        # Opcjonalnie: ograniczamy słownik, żeby zwiększyć celność
-        # Słowa muszą być małymi literami
+        #lista slow - wieksza precyzja rozpoznawania
         self.words_list = '["start", "stop", "barki", "biceps", "reset"]'
         self.recognizer = KaldiRecognizer(self.model, 16000, self.words_list)
 
         self.thread = threading.Thread(target=self.listen_loop, daemon=True)
         self.thread.start()
 
+    # Callback audio dla PyAudio
     def audio_callback(self, in_data, frame_count, time_info, status):
-        """Pobiera audio z mikrofonu i wrzuca do kolejki"""
         self.q.put(in_data)
         return (None, pyaudio.paContinue)
 
+    #nasluchiwanie w oddzielnym watku
     def listen_loop(self):
         print(" [VoiceThread] Aktywny (Vosk)")
 
@@ -78,11 +78,10 @@ class VoiceThread:
                 text = result.get("text", "")
 
                 if text:
-                    # DLA TETSU DIAGNISTYCZNEGO
-                    print(f" [VOSK] Usłyszałem: '{text}'")
+                    # DEBUG
+                    print(f" [VOSK] Uslyszałem: '{text}'")
                     self.last_command = text
             else:
-                # Tutaj można wyciągać PartialResult(), jeśli chcesz widzieć tekst w trakcie mówienia
                 pass
 
         stream.stop_stream()
@@ -107,8 +106,6 @@ class Trainer:
         self.cheat_right = False
         # Komunikaty
         self.feedback = []
-        # cos tam motywacja jak chce reset przy niedokonczonym planie (nie wszystkie serie done)
-        self.system_message = []
 
     def process_biceps(self, angles):
         self.feedback = []
@@ -287,7 +284,7 @@ class WorkoutManager:
 
         self.sets_done["biceps"] = 0
         self.sets_done["barki"] = 0
-        print(f" Rozpoczęto nową sesję: {self.session_id}")
+        print(f" Rozpoczeto nowa sesje, id: {self.session_id}")
 
     # wyswietla numer ROBIONEJ serii
     # jesli nie zrobilismy jeszcze zadnej to ofc robimy "1"
@@ -330,23 +327,19 @@ class WorkoutManager:
         self.target_sets[exercise] = new_val
 
     # sprawdza czy uzytkownik moze zresetowac serie dla danego cwiczenia
-    def reset_targets(self, cmd, exercise):
+    def reset_targets(self, cmd, started, exercise):
+        if not exercise:
+            return
         if cmd == "reset":
-            if exercise == "none":
-                return None
-
             # czy plan tego cwiczenia skonczony?
             if self.is_workout_complete(exercise):
-                print(f" Ukończono serie dla '{exercise}'. Resetowanie licznika.")
+                ng.notif.add_notification(f"Ukończono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
                 self.sets_done[exercise] = 0
-                return True  # reset done
             else:
-                print(
-                    f" Użytkownik próbuje zresetować niedokończone serie dla '{exercise}'."
-                )
-                return False  # zakaz
+                #nie skonczyl serii a chce zresetowac - zakaz
+                ng.notif.add_notification("Dokoncz serie, zanim zresetujesz! Dasz rade!",duration_seconds=3.0,)
 
-        return None
+        return ""
 
 
 # stan aplikacji zamiast zmiennych globalnych w main
