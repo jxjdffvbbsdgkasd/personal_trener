@@ -1,5 +1,5 @@
 from settings import *
-
+import notification_global as ng 
 font_big = None
 font_med = None
 font_small = None
@@ -550,7 +550,7 @@ def draw_angles_on_frames(frame_left, frame_right, results_left, results_right, 
         )
 
 
-def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
+def select_exercise_via_voice(timeout=10, phrase_time_limit=4): # unused (chyba)
     r = sr.Recognizer()
     mic = sr.Microphone(device_index=1, sample_rate=48000)
     try:
@@ -575,16 +575,15 @@ def select_exercise_via_voice(timeout=10, phrase_time_limit=4):
 def process_command(voice_control, exercise_type, workout_manager, trainer):
     cmd = voice_control.last_command
 
-    trainer.clear_system_message()
-
-    if not cmd or cmd == "COMMAND_NONE":
+    if not cmd:
         return exercise_type
 
     # obsluga start stop
     if cmd == "start":
         if exercise_type == "none":
-            print(" Wybierz ćwiczenie najpierw!")
-            trainer.system_message.append("Najpierw wybierz ćwiczenie!")
+            #print(" Wybierz ćwiczenie najpierw!")
+            #trainer.system_message.append("Najpierw wybierz ćwiczenie!")
+            ng.notif.add_notification("Najpierw wybierz ćwiczenie!",duration_seconds=2.0,)
         else:
             voice_control.started = True
 
@@ -602,25 +601,18 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
             and not workout_manager.is_workout_complete(exercise_type)
         ):
 
-            print(f" [BLOKADA] Ukończ serie dla '{exercise_type}'!")
-            trainer.system_message.append(f"Dokończ serie dla '{exercise_type}'!")
+            #print(f" [BLOKADA] Ukończ serie dla '{exercise_type}'!")
+            #trainer.system_message.append(f"Dokończ serie dla '{exercise_type}'!")
+            ng.notif.add_notification(f"[BLOKADA] Ukończ serie dla '{exercise_type}'!",duration_seconds=2.0,)
+
         else:
             exercise_type = cmd
-            print(f" Zmieniono ćwiczenie na: {cmd}")
+            #print(f" Zmieniono ćwiczenie na: {cmd}")
+            ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}",duration_seconds=2.0,)
 
-    # resetowanie
-    elif cmd == "reset":
-        reset_status = workout_manager.reset_targets(cmd, exercise_type)
-        if reset_status is True:
-            trainer.system_message.append(
-                f"Liczniki dla '{exercise_type}' zresetowane!"
-            )
-        elif reset_status is False:
-            trainer.system_message.append("Dokończ serie, zanim zresetujesz!")
-            trainer.system_message.append("Dasz radę!")
-
-    voice_control.last_command = ""
-
+    #resetowanie
+    if cmd != "reset":
+        voice_control.last_command = ""
     return exercise_type
 
 

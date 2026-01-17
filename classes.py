@@ -1,6 +1,6 @@
 from settings import *
 from datetime import datetime
-
+import notification_global as ng
 
 class IPStream:
     def __init__(self, url):
@@ -79,7 +79,7 @@ class VoiceThread:
 
                 if text:
                     # DLA TETSU DIAGNISTYCZNEGO
-                    print(f" [VOSK] Usłyszałem: '{text}'")
+                    print(f" [VOSK] Uslyszałem: '{text}'")
                     self.last_command = text
             else:
                 # Tutaj można wyciągać PartialResult(), jeśli chcesz widzieć tekst w trakcie mówienia
@@ -287,7 +287,7 @@ class WorkoutManager:
 
         self.sets_done["biceps"] = 0
         self.sets_done["barki"] = 0
-        print(f" Rozpoczęto nową sesję: {self.session_id}")
+        print(f" Rozpoczeto nowa sesje, id: {self.session_id}")
 
     # wyswietla numer ROBIONEJ serii
     # jesli nie zrobilismy jeszcze zadnej to ofc robimy "1"
@@ -330,23 +330,20 @@ class WorkoutManager:
         self.target_sets[exercise] = new_val
 
     # sprawdza czy uzytkownik moze zresetowac serie dla danego cwiczenia
-    def reset_targets(self, cmd, exercise):
+    def reset_targets(self, cmd, started, exercise):
+        if not exercise:
+            return
         if cmd == "reset":
-            if exercise == "none":
-                return None
-
             # czy plan tego cwiczenia skonczony?
             if self.is_workout_complete(exercise):
-                print(f" Ukończono serie dla '{exercise}'. Resetowanie licznika.")
+                #print(f" Ukończono serie dla '{exercise}'. Resetowanie licznika.")
+                ng.notif.add_notification(f"Ukończono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
                 self.sets_done[exercise] = 0
-                return True  # reset done
             else:
-                print(
-                    f" Użytkownik próbuje zresetować niedokończone serie dla '{exercise}'."
-                )
-                return False  # zakaz
-
-        return None
+                ng.notif.add_notification("Dokoncz serie, zanim zresetujesz! Dasz rade!",duration_seconds=3.0,)
+                print(f" Użytkownik próbuje zresetować niedokończone serie dla '{exercise}'.")
+                
+        return ""
 
 
 # stan aplikacji zamiast zmiennych globalnych w main
