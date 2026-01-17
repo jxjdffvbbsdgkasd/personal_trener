@@ -142,19 +142,6 @@ class DBManager:
             return {"biceps": settings[0], "barki": settings[1]}
         return None
 
-    def get_user_history(self, user_id):
-        # surowe dane z sesji, potem ogarniane sa w ui
-        self.cursor.execute(
-            """
-            SELECT date_time, exercise_type, reps_left, reps_right, correctness_percent, session_id, set_number
-            FROM workout_sessions 
-            WHERE user_id=? 
-            ORDER BY date_time DESC
-        """,
-            (user_id,),
-        )
-        return self.cursor.fetchall()
-
     # pobieranie unikalnych sesji do listy w historii
     def get_unique_sessions(self, user_id):
         self.cursor.execute(

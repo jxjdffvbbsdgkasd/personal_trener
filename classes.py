@@ -43,19 +43,19 @@ class VoiceThread:
 
         self.model = Model(model_path)
 
-        # Opcjonalnie: ograniczamy słownik, żeby zwiększyć celność
-        # Słowa muszą być małymi literami
+        #lista slow - wieksza precyzja rozpoznawania
         self.words_list = '["start", "stop", "barki", "biceps", "reset"]'
         self.recognizer = KaldiRecognizer(self.model, 16000, self.words_list)
 
         self.thread = threading.Thread(target=self.listen_loop, daemon=True)
         self.thread.start()
 
+    # Callback audio dla PyAudio
     def audio_callback(self, in_data, frame_count, time_info, status):
-        """Pobiera audio z mikrofonu i wrzuca do kolejki"""
         self.q.put(in_data)
         return (None, pyaudio.paContinue)
 
+    #nasluchiwanie w oddzielnym watku
     def listen_loop(self):
         print(" [VoiceThread] Aktywny (Vosk)")
 
@@ -78,11 +78,10 @@ class VoiceThread:
                 text = result.get("text", "")
 
                 if text:
-                    # DLA TETSU DIAGNISTYCZNEGO
+                    # DEBUG
                     print(f" [VOSK] Uslyszałem: '{text}'")
                     self.last_command = text
             else:
-                # Tutaj można wyciągać PartialResult(), jeśli chcesz widzieć tekst w trakcie mówienia
                 pass
 
         stream.stop_stream()
@@ -107,8 +106,6 @@ class Trainer:
         self.cheat_right = False
         # Komunikaty
         self.feedback = []
-        # cos tam motywacja jak chce reset przy niedokonczonym planie (nie wszystkie serie done)
-        self.system_message = []
 
     def process_biceps(self, angles):
         self.feedback = []
@@ -336,13 +333,12 @@ class WorkoutManager:
         if cmd == "reset":
             # czy plan tego cwiczenia skonczony?
             if self.is_workout_complete(exercise):
-                #print(f" Ukończono serie dla '{exercise}'. Resetowanie licznika.")
                 ng.notif.add_notification(f"Ukończono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
                 self.sets_done[exercise] = 0
             else:
+                #nie skonczyl serii a chce zresetowac - zakaz
                 ng.notif.add_notification("Dokoncz serie, zanim zresetujesz! Dasz rade!",duration_seconds=3.0,)
-                print(f" Użytkownik próbuje zresetować niedokończone serie dla '{exercise}'.")
-                
+
         return ""
 
 

@@ -160,12 +160,8 @@ def draw_dashboard(
         screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190
     )
 
-
+#rysowanie kolorowego szkieletu (dobrze robi - zielony, zle - czerwony)
 def detect_and_draw(frame, model, draw_color=(0, 255, 0)):
-    """
-    Wykrywa pozę i rysuje szkielet w zadanym kolorze.
-    draw_color: krotka (B, G, R) - domyślnie Zielony (0, 255, 0).
-    """
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_rgb.flags.writeable = False
     results = model.process(frame_rgb)
@@ -196,10 +192,10 @@ def _landmark_dict(results):
     lm = results.pose_landmarks.landmark
     return {i: (lm[i].x, lm[i].y) for i in range(len(lm))}
 
-
+    #matematyka
 def _triangulate_point(x1, y1, x2, y2, focal=1.0, baseline=0.6):
     """Approximate 3D point from two normalized image coords.
-
+    
     Assumptions:
     - both images are normalized coords from 0..1
     - cameras are symmetric around Z axis at +/-45 degrees yaw
@@ -361,217 +357,7 @@ def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline
 
     return angles
 
-
-def draw_angles_on_frames(frame_left, frame_right, results_left, results_right, angles):
-    """Draw angle text near elbow landmarks on both frames."""
-    # Draw both left and right angles on both frames using each frame's landmark positions
-    h1, w1 = frame_left.shape[:2]
-    h2, w2 = frame_right.shape[:2]
-
-    COLOR_ELBOW = (0, 255, 255)  # zolty
-    COLOR_SWING = (0, 140, 255)  # pomarancz
-    COLOR_HIP = (255, 0, 255)  # fiolet
-
-    def draw_styled_text(img, text, x, y, color):
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        scale = 0.7
-        thickness = 2
-
-        # czarny outline
-        cv2.putText(img, text, (x, y), font, scale, (0, 0, 0), thickness + 3)
-        # wartosci katow
-        cv2.putText(img, text, (x, y), font, scale, color, thickness)
-
-    # pomocnicza do pokazania katow
-    def _draw_if(
-        frame, lm_list, landmark_idx, x_scale, y_scale, val, prefix, color, y_offset=0
-    ):
-        if lm_list is None:
-            return
-        if landmark_idx is None or landmark_idx >= len(lm_list):
-            return
-        # pobranie punktu
-        x = int(lm_list[landmark_idx].x * x_scale)
-        y = int(lm_list[landmark_idx].y * y_scale)
-        if val is not None:
-            text = f"{prefix}:{int(val)}"
-            draw_styled_text(frame, text, x - 30, y + y_offset, color)
-
-    # lewa kamerka (laptop)
-    if results_left and results_left.pose_landmarks:
-        lm_l = results_left.pose_landmarks.landmark
-
-        # barki
-        _draw_if(
-            frame_left,
-            lm_l,
-            mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value,
-            w1,
-            h1,
-            angles.get("left_shoulder_swing"),
-            "Lsw",
-            COLOR_SWING,
-            y_offset=-40,
-        )
-        _draw_if(
-            frame_left,
-            lm_l,
-            mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value,
-            w1,
-            h1,
-            angles.get("right_shoulder_swing"),
-            "Rsw",
-            COLOR_SWING,
-            y_offset=-40,
-        )
-
-        # lokcie
-        _draw_if(
-            frame_left,
-            lm_l,
-            mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value,
-            w1,
-            h1,
-            angles.get("left_elbow"),
-            "Lel",
-            COLOR_ELBOW,
-            y_offset=10,
-        )
-        _draw_if(
-            frame_left,
-            lm_l,
-            mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value,
-            w1,
-            h1,
-            angles.get("right_elbow"),
-            "Rel",
-            COLOR_ELBOW,
-            y_offset=10,
-        )
-
-        # biodra
-        _draw_if(
-            frame_left,
-            lm_l,
-            mp.solutions.pose.PoseLandmark.LEFT_HIP.value,
-            w1,
-            h1,
-            angles.get("left_hip_angle"),
-            "Lhip",
-            COLOR_HIP,
-            y_offset=50,
-        )
-        _draw_if(
-            frame_left,
-            lm_l,
-            mp.solutions.pose.PoseLandmark.RIGHT_HIP.value,
-            w1,
-            h1,
-            angles.get("right_hip_angle"),
-            "Rhip",
-            COLOR_HIP,
-            y_offset=50,
-        )
-
-    # prawa kamerka (telefon)
-    if results_right and results_right.pose_landmarks:
-        lm_r = results_right.pose_landmarks.landmark
-
-        # barki
-        _draw_if(
-            frame_right,
-            lm_r,
-            mp.solutions.pose.PoseLandmark.LEFT_SHOULDER.value,
-            w2,
-            h2,
-            angles.get("left_shoulder_swing"),
-            "Lsw",
-            COLOR_SWING,
-            y_offset=-40,
-        )
-        _draw_if(
-            frame_right,
-            lm_r,
-            mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER.value,
-            w2,
-            h2,
-            angles.get("right_shoulder_swing"),
-            "Rsw",
-            COLOR_SWING,
-            y_offset=-40,
-        )
-
-        # łokcie
-        _draw_if(
-            frame_right,
-            lm_r,
-            mp.solutions.pose.PoseLandmark.LEFT_ELBOW.value,
-            w2,
-            h2,
-            angles.get("left_elbow"),
-            "Lel",
-            COLOR_ELBOW,
-            y_offset=10,
-        )
-        _draw_if(
-            frame_right,
-            lm_r,
-            mp.solutions.pose.PoseLandmark.RIGHT_ELBOW.value,
-            w2,
-            h2,
-            angles.get("right_elbow"),
-            "Rel",
-            COLOR_ELBOW,
-            y_offset=10,
-        )
-
-        # biodra
-        _draw_if(
-            frame_right,
-            lm_r,
-            mp.solutions.pose.PoseLandmark.LEFT_HIP.value,
-            w2,
-            h2,
-            angles.get("left_hip_angle"),
-            "Lhip",
-            COLOR_HIP,
-            y_offset=50,
-        )
-        _draw_if(
-            frame_right,
-            lm_r,
-            mp.solutions.pose.PoseLandmark.RIGHT_HIP.value,
-            w2,
-            h2,
-            angles.get("right_hip_angle"),
-            "Rhip",
-            COLOR_HIP,
-            y_offset=50,
-        )
-
-
-def select_exercise_via_voice(timeout=10, phrase_time_limit=4): # unused (chyba)
-    r = sr.Recognizer()
-    mic = sr.Microphone(device_index=1, sample_rate=48000)
-    try:
-        with mic as source:
-            print("Listening for exercise name (say 'barki' or 'biceps')...")
-            audio = r.listen(
-                source, timeout=timeout, phrase_time_limit=phrase_time_limit
-            )
-        text = r.recognize_google(audio, show_all=False, language="pl-PL")
-        if not text:
-            return None
-        text = text.lower()
-        if "barki" in text:
-            return "barki"
-        if "biceps" in text:
-            return "biceps"
-    except Exception as e:
-        pass
-    return None
-
-
+    #handler dla komend glosowych
 def process_command(voice_control, exercise_type, workout_manager, trainer):
     cmd = voice_control.last_command
 
@@ -601,16 +387,13 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
             and not workout_manager.is_workout_complete(exercise_type)
         ):
 
-            #print(f" [BLOKADA] Ukończ serie dla '{exercise_type}'!")
-            #trainer.system_message.append(f"Dokończ serie dla '{exercise_type}'!")
             ng.notif.add_notification(f"[BLOKADA] Ukończ serie dla '{exercise_type}'!",duration_seconds=2.0,)
 
         else:
             exercise_type = cmd
-            #print(f" Zmieniono ćwiczenie na: {cmd}")
             ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}",duration_seconds=2.0,)
 
-    #resetowanie
+    #resetowanie w kolejnej funkcji wiec last_command czyscimy tam
     if cmd != "reset":
         voice_control.last_command = ""
     return exercise_type

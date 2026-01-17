@@ -39,7 +39,7 @@ class NotificationManager:
         self.screen_height = screen_height
         self.active_notifications = []
         
-        # Jeśli nie podano czcionki, tworzymy systemową
+        # zabezpieczenie jakby ktos nie podal czcionki
         if default_font is None:
             self.default_font = pygame.font.SysFont("Arial", 24)
         else:
@@ -50,15 +50,15 @@ class NotificationManager:
                          position_topleft=None, position_center=None, pos_y_diff=0, 
                          font=None, outline_color=(0, 0, 0), outline_thickness=1):
         
-        # Wybór czcionki (przekazana lub domyślna z __init__)
+        #czcionka
         use_font = font if font else self.default_font
 
-        # 1. Generujemy tekst (z obrysem lub bez używając pomocniczej funkcji)
+        # 1. generowanie tekstu z obrysem
         text_surface = render_text_with_outline(
             message, use_font, text_color, outline_color, outline_thickness
         )
 
-        # 2. Obsługa tła (bg_color)
+        # 2. tlo
         padding = 10
         if bg_color:
             bg_width = text_surface.get_width() + 2 * padding
@@ -66,14 +66,13 @@ class NotificationManager:
             final_surface = pygame.Surface((bg_width, bg_height), pygame.SRCALPHA)
             final_surface.fill(bg_color)
             
-            # Wyśrodkowanie tekstu na tle
             text_rect = text_surface.get_rect(center=(bg_width // 2, bg_height // 2))
             final_surface.blit(text_surface, text_rect)
         else:
-            # Jeśli nie ma tła, finalną powierzchnią jest sam tekst
+            # jak nie ma tla, to sam tekst
             final_surface = text_surface
 
-        # 3. Pozycjonowanie
+        # 3. pozycjonowanie
         final_rect = final_surface.get_rect()
         
         if position_topleft:
@@ -81,15 +80,15 @@ class NotificationManager:
         elif position_center:
             final_rect.center = position_center
         else:
-            # Domyślnie środek ekranu w poziomie, z przesunięciem w pionie
-            default_top_y = 100 + pos_y_diff  # 100px od góry jako baza
+            # srodek +- offset
+            default_top_y = 100 + pos_y_diff
             final_rect.centerx = self.screen_width // 2
             final_rect.top = default_top_y
 
-        # 4. Obliczenie czasu zakończenia
+        # 4. czas trwania
         end_time = pygame.time.get_ticks() + (duration_seconds * 1000)
 
-        # 5. Dodanie do listy
+        # 5. lista notyfikacji
         self.active_notifications.append({
             "surface": final_surface,
             "rect": final_rect,
@@ -110,8 +109,3 @@ class NotificationManager:
         # Rysowanie
         for note in self.active_notifications:
             screen.blit(note["surface"], note["rect"])
-
-    def update_screen_size(self, width, height):
-        """Przydatne jeśli okno programu może zmieniać rozmiar"""
-        self.screen_width = width
-        self.screen_height = height
