@@ -18,11 +18,19 @@ def handle_login_state(
     CENTER_Y,
 ):
     draw_text_centered(
-        screen, "CYBER TRENER - LOGOWANIE", font_big, COLOR_ACCENT, CENTER_X, 100
+        screen, "CYBER TRENER", font_big, COLOR_ACCENT, CENTER_X, CENTER_Y - 245
+    )
+    draw_text_centered(
+        screen, "PANEL DOSTĘPU", font_small, COLOR_TEXT, CENTER_X, CENTER_Y - 195
     )
 
+    draw_text_centered(screen, "LOGIN UŻYTKOWNIKA", font_small, (150, 150, 150), CENTER_X, CENTER_Y - 90)
     ui["input_login"].draw(screen)
+
+    draw_text_centered(screen, "HASŁO", font_small, (150, 150, 150), CENTER_X, CENTER_Y + 30)
     ui["input_pass"].draw(screen)
+
+    # Przyciski
     ui["btn_login"].draw(screen)
     ui["btn_register"].draw(screen)
 
@@ -33,7 +41,7 @@ def handle_login_state(
             font_small,
             COLOR_RED,
             CENTER_X,
-            CENTER_Y + 180,
+            CENTER_Y + 130
         )
 
     for event in events:
@@ -196,7 +204,6 @@ def handle_training_state(
                 cam_ip = None
                 print(" Rozlaczono z kamera IP")
 
-    # cameras
     ret1, frame1 = cap_local.read()
     if cam_ip:
         ret2, frame2 = cam_ip.read()
