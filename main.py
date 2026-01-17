@@ -69,11 +69,34 @@ while game_state.running:
 
     # STAN LOGOWANIA
     if game_state.state == "LOGIN":
-        handle_login_state(screen, ui, events, game_state, db, workout_manager, font_big, font_med, font_small, CENTER_X, CENTER_Y)
+        handle_login_state(
+            screen,
+            ui,
+            events,
+            game_state,
+            db,
+            workout_manager,
+            font_big,
+            font_med,
+            font_small,
+            CENTER_X,
+            CENTER_Y,
+        )
 
     # STAN MENU GLOWNEGO
     elif game_state.state == "MENU":
-        cam_ip = handle_menu_state(screen, ui, events, game_state, trainer, workout_manager, cam_ip, font_big, font_med, CENTER_X)
+        cam_ip = handle_menu_state(
+            screen,
+            ui,
+            events,
+            game_state,
+            trainer,
+            workout_manager,
+            cam_ip,
+            font_big,
+            font_med,
+            CENTER_X,
+        )
 
     # STAN TRENINGU
     elif game_state.state == "TRAINING":
@@ -99,15 +122,21 @@ while game_state.running:
 
     # STAN HISTORII
     elif game_state.state == "HISTORY":
-        handle_history_state(screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X)
+        handle_history_state(
+            screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X
+        )
 
     # STAN SZCZEGOLY TRRNINGU
     elif game_state.state == "HISTORY_DETAILS":
-        handle_history_details_state(screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X)
+        handle_history_details_state(
+            screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X
+        )
 
     # STAN USTAWIEN
     elif game_state.state == "SETTINGS":
-        handle_settings_state(screen, ui, events, game_state, db, workout_manager, font_big)
+        handle_settings_state(
+            screen, ui, events, game_state, db, workout_manager, font_big, font_med
+        )
 
     pygame.display.flip()
     clock.tick(FPS)

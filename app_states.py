@@ -358,7 +358,7 @@ def handle_history_details_state(
 
 
 def handle_settings_state(
-    screen, ui, events, game_state, db, workout_manager, font_big
+    screen, ui, events, game_state, db, workout_manager, font_big, font_med
 ):
     draw_text_centered(
         screen, "Konfiguracja Serii", font_big, COLOR_ACCENT, CENTER_X, 50
