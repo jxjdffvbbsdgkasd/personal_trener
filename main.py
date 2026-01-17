@@ -1,85 +1,149 @@
+from ui_builder import build_ui
 from settings import *
 from classes import *
 from utils import *
+from ui_components import *
+from app_states import (
+    handle_login_state,
+    handle_menu_state,
+    handle_training_state,
+    handle_history_state,
+    handle_history_details_state,
+    handle_settings_state,
+)
 
 pygame.init()
-init_fonts()
+font_big, font_med, font_small = init_fonts()
+
+
 screen = pygame.display.set_mode((WIN_W, WIN_H))
 pygame.display.set_caption("Cyber Trener - System Analizy Ruchu")
 clock = pygame.time.Clock()
 
+# kamery
 mp_pose = mp.solutions.pose
 pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
- 
+
 cap_local = cv2.VideoCapture(local_idx)
-cam_ip = IPStream(ip_url)
+cam_ip = None
 
 print("Wybierz ćwiczenie (biceps albo barki)")
-exercise_type = "none"
 voice_control = VoiceThread(model_path="vosk-model")
 
+game_state = GameState()
 trainer = Trainer()
+workout_manager = WorkoutManager()
+db = DBManager()
 angles = None
-running = True
-while running:
 
-    exercise_type = process_command(voice_control, exercise_type)
-    if exercise_type == "reset":
-        trainer.reset()
-        exercise_type = "none"
+# budowa ui
+ui = build_ui(CENTER_X, CENTER_Y, font_big, font_med, font_small)
 
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_q: running = False
-            if event.key == pygame.K_r: trainer.reset()  # Reset klawiszem R
-
-    ret1, frame1 = cap_local.read()
-    ret2, frame2 = cam_ip.read()
-
-    # Obsługa błędów kamer (pusta klatka)
-    if not ret1: frame1 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
-    if not ret2: frame2 = np.zeros((CAM_H, CAM_W, 3), np.uint8)
-
-    frame1 = cv2.resize(frame1, (CAM_W, CAM_H))
-    frame2 = cv2.resize(frame2, (CAM_W, CAM_H))
-
-    # 1. Ustalamy kolor na podstawie flag błędu (cheat)
-    skeleton_color = (0, 255, 0) # Domyślnie ZIELONY
-    if trainer.cheat_left or trainer.cheat_right:
-        skeleton_color = (0, 0, 255) # Jeśli błąd -> CZERWONY
-
-    # 2. Przekazujemy kolor do funkcji rysującej (draw_color)
-    frame1, results1 = detect_and_draw(frame1, pose_local, draw_color=skeleton_color)
-    frame2, results2 = detect_and_draw(frame2, pose_ip, draw_color=skeleton_color)
-
-    angles = {}
-
-    if voice_control.started:
-        if exercise_type == "biceps":
-            angles = compute_angles_3d_biceps(results1, results2, focal=1.0, baseline=0.6)
-            trainer.process_biceps(angles)
-        elif exercise_type == "barki":
-            angles = compute_angles_3d_shoulders(results1, results2, focal=1.0, baseline=0.6)
-            trainer.process_shoulders(angles)
-
+while game_state.running:
     screen.fill(COLOR_BG)
 
-    pg_frame1 = cv2_to_pygame(frame1, CAM_W, CAM_H)
-    pg_frame2 = cv2_to_pygame(frame2, CAM_W, CAM_H)
+    # obsluga zdarzen
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.QUIT:
+            game_state.running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_q:
+                game_state.running = False
 
-    screen.blit(pg_frame1, (0, 0))
-    screen.blit(pg_frame2, (CAM_W, 0))
+        # obsluga wpisywania tekstu w login i w settings
+        if game_state.state == "LOGIN":
+            ui["input_login"].handle_event(event)
+            ui["input_pass"].handle_event(event)
+        elif game_state.state == "SETTINGS":
+            # reczne wpisywanie ilosci serii
+            ui["inp_bic"].handle_event(event)
+            ui["inp_bar"].handle_event(event)
 
-    draw_dashboard(screen, exercise_type, voice_control.started, trainer, angles)
+            # walidacja wpisywania w ustawieniach
+            if ui["inp_bic"].text.isdigit() and int(ui["inp_bic"].text) > 0:
+                workout_manager.target_sets["biceps"] = int(ui["inp_bic"].text)
+            if ui["inp_bar"].text.isdigit() and int(ui["inp_bar"].text) > 0:
+                workout_manager.target_sets["barki"] = int(ui["inp_bar"].text)
+
+    # STAN LOGOWANIA
+    if game_state.state == "LOGIN":
+        handle_login_state(
+            screen,
+            ui,
+            events,
+            game_state,
+            db,
+            workout_manager,
+            font_big,
+            font_med,
+            font_small,
+            CENTER_X,
+            CENTER_Y,
+        )
+
+    # STAN MENU GLOWNEGO
+    elif game_state.state == "MENU":
+        cam_ip = handle_menu_state(
+            screen,
+            ui,
+            events,
+            game_state,
+            trainer,
+            workout_manager,
+            cam_ip,
+            font_big,
+            font_med,
+            CENTER_X,
+        )
+
+    # STAN TRENINGU
+    elif game_state.state == "TRAINING":
+        cam_ip, angles = handle_training_state(
+            screen,
+            ui,
+            events,
+            game_state,
+            trainer,
+            workout_manager,
+            db,
+            voice_control,
+            cap_local,
+            cam_ip,
+            pose_local,
+            pose_ip,
+            font_big,
+            font_med,
+            font_small,
+            CENTER_X,
+            CENTER_Y,
+        )
+
+    # STAN HISTORII
+    elif game_state.state == "HISTORY":
+        handle_history_state(
+            screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X
+        )
+
+    # STAN SZCZEGOLY TRRNINGU
+    elif game_state.state == "HISTORY_DETAILS":
+        handle_history_details_state(
+            screen, ui, events, game_state, db, font_big, font_med, font_small, CENTER_X
+        )
+
+    # STAN USTAWIEN
+    elif game_state.state == "SETTINGS":
+        handle_settings_state(
+            screen, ui, events, game_state, db, workout_manager, font_big, font_med
+        )
 
     pygame.display.flip()
     clock.tick(FPS)
 
 voice_control.stop()
 cap_local.release()
-cam_ip.release()
+if cam_ip:
+    cam_ip.release()
+db.close()
 pygame.quit()

@@ -10,7 +10,7 @@ env/
 .vscode/
 .idea/
 
-#*.db
+*.db
 #*.sqlite3
 #database.json
 
