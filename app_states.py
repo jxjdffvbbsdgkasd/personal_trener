@@ -21,7 +21,7 @@ def handle_login_state(
         screen, "CYBER TRENER", font_big, COLOR_ACCENT, CENTER_X, CENTER_Y - 245
     )
     draw_text_centered(
-        screen, "PANEL DOSTĘPU", font_small, COLOR_TEXT, CENTER_X, CENTER_Y - 195
+        screen, "PANEL LOGOWANIA", font_small, COLOR_TEXT, CENTER_X, CENTER_Y - 195
     )
 
     draw_text_centered(screen, "LOGIN UŻYTKOWNIKA", font_small, (150, 150, 150), CENTER_X, CENTER_Y - 90)

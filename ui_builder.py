@@ -11,7 +11,7 @@ def build_ui(center_x, center_y, font_big, font_med, font_small):
     )
 
     ui["btn_login"] = Button(
-        center_x - 125, center_y + 160, 250, 55, "Zaloguj", font_med, "LOGIN"
+        center_x - 125, center_y + 160, 250, 55, "Zaloguj się", font_med, "LOGIN"
     )
 
     ui["btn_register"] = Button(

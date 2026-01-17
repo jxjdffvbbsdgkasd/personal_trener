@@ -20,10 +20,7 @@ def init_fonts():
 def cv2_to_pygame(frame, width, height):
     frame = cv2.resize(frame, (width, height))
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # Zamieniamy osie (height,width,3) -> (width,height,3) bez obracania/odbicia
 
-    # Pygame inacznej interpretuje osie X/Y niż NumPy,
-    # dlatego musimy zamienić szerokość z wysokością (transpozycja).
     frame = np.transpose(frame, (1, 0, 2))
     return pygame.surfarray.make_surface(frame)
 
@@ -45,17 +42,16 @@ def draw_dashboard(
     pygame.draw.line(screen, (80, 80, 80), (0, y_start), (WIN_W, y_start), 2)
 
     center_x = WIN_W // 2
-    # lewa
-    left_center_x = WIN_W // 4
-    # prawa
-    right_center_x = (WIN_W // 4) * 3
-
-    box_width = 320
+    margin = 30
+    box_width = 350
     box_height = DASH_H - 40
-
-    left_box_x = left_center_x - (box_width // 2)
-    right_box_x = right_center_x - (box_width // 2)
     box_y = y_start + 20
+
+    left_box_x = margin
+    left_center_x = left_box_x + (box_width // 2)
+
+    right_box_x = WIN_W - box_width - margin
+    right_center_x = right_box_x + (box_width // 2)
 
     draw_text_centered(
         screen,
@@ -75,7 +71,7 @@ def draw_dashboard(
         set_color = (200, 200, 200)
         set_text = f"Seria: {current_set} / {target_set}"
 
-        # info po skonczeniu wszystkich
+        # informacja po skonczeniu wszystkich
         if workout_manager.is_workout_complete(exercise_name):
             set_text += " (UKOŃCZONO)"
             set_color = COLOR_GREEN
@@ -167,7 +163,7 @@ def draw_dashboard(
         screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190
     )
 
-#rysowanie kolorowego szkieletu (dobrze robi - zielony, zle - czerwony)
+# rysowanie kolorowego szkieletu (dobrze - zielony, zle - czerwony)
 def detect_and_draw(frame, model, draw_color=(0, 255, 0)):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_rgb.flags.writeable = False
@@ -237,7 +233,7 @@ def _triangulate_point(x1, y1, x2, y2, focal=1.0, baseline=0.6):
     ])
 
     # cierz obrotu dla prawej kamery
-    R_right = nMap.array([
+    R_right = np.array([
         [np.cos(-th), 0.0, np.sin(-th)],
         [0.0, 1.0, 0.0],
         [-np.sin(-th), 0.0, np.cos(-th)],
@@ -287,8 +283,8 @@ def reconstruct_3d(results_left, results_right, focal=1.0, baseline=0.6):
 
 def angle_between_3d(a, b, c):
     """
-    Liczy kąt w stopniach między trzema punktami.
-    Np. Kąt w łokciu to kąt między: Ramieniem (A), Łokciem (B) i Nadgarstkiem (C).
+        Liczy kąt w stopniach między trzema punktami.
+        Np. Kąt w łokciu to kąt między: Ramieniem (A), Łokciem (B) i Nadgarstkiem (C).
     """
     ba = a - b
     bc = c - b
@@ -389,8 +385,6 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
     # obsluga start stop
     if cmd == "start":
         if exercise_type == "none":
-            #print(" Wybierz ćwiczenie najpierw!")
-            #trainer.system_message.append("Najpierw wybierz ćwiczenie!")
             ng.notif.add_notification("Najpierw wybierz ćwiczenie!",duration_seconds=2.0,)
         else:
             voice_control.started = True
@@ -415,7 +409,7 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
             exercise_type = cmd
             ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}",duration_seconds=2.0,)
 
-    #resetowanie w kolejnej funkcji wiec last_command czyscimy tam
+    # resetowanie w kolejnej funkcji wiec last_command czyscimy tam
     if cmd != "reset":
         voice_control.last_command = ""
     return exercise_type
