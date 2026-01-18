@@ -34,7 +34,7 @@ def draw_text_centered(surface, text, font, color, center_x, center_y):
 
 
 def draw_dashboard(
-    screen, exercise_name, is_running, trainer, angles, workout_manager=None
+        screen, exercise_name, is_running, trainer, angles, workout_manager=None
 ):
     y_start = CAM_H
 
@@ -91,12 +91,77 @@ def draw_dashboard(
         screen, status_msg, font_small, (0, 0, 0), center_x, y_start + 95
     )
 
+    if angles is not None:
+        # lewa
+        pygame.draw.rect(
+            screen,
+            COLOR_PANEL,
+            (left_box_x, box_y, box_width, box_height),
+            border_radius=15,
+        )
+        draw_text_centered(
+            screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50
+        )
+        draw_text_centered(
+            screen,
+            str(trainer.reps_left),
+            font_big,
+            COLOR_ACCENT,
+            left_center_x,
+            y_start + 110,
+        )
+        draw_text_centered(
+            screen, "powtórzeń", font_small, (150, 150, 150), left_center_x, y_start + 150
+        )
+        ang_l = angles.get("left_elbow")
+        val_l = f"{int(ang_l)}°" if ang_l else "--"
+        draw_text_centered(
+            screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_center_x, y_start + 190
+        )
+
+        # prawa
+        pygame.draw.rect(
+            screen,
+            COLOR_PANEL,
+            (right_box_x, box_y, box_width, box_height),
+            border_radius=15,
+        )
+        draw_text_centered(
+            screen, "Prawa Ręka", font_med, COLOR_TEXT, right_center_x, y_start + 50
+        )
+        draw_text_centered(
+            screen,
+            str(trainer.reps_right),
+            font_big,
+            COLOR_ACCENT,
+            right_center_x,
+            y_start + 110,
+        )
+        draw_text_centered(
+            screen, "powtórzeń", font_small, (150, 150, 150), right_center_x, y_start + 150
+        )
+        ang_r = angles.get("right_elbow")
+        val_r = f"{int(ang_r)}°" if ang_r else "--"
+        draw_text_centered(
+            screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190
+        )
+
     # Box na Feedback
     if trainer.feedback:
-        for i, msg in enumerate(trainer.feedback[:3]):
-            draw_text_centered(
-                screen, msg, font_small, COLOR_RED, center_x, y_start + 140 + (i * 25)
-            )
+        for i, msg in enumerate(trainer.feedback[:2]):
+            txt_surf = font_med.render(msg.upper(), True, COLOR_RED)
+
+            fixed_w = 650
+            fixed_h = 48
+
+            box_rect = pygame.Rect(0, 0, fixed_w, fixed_h)
+            box_rect.center = (center_x, y_start + 155 + (i * 60))
+
+            pygame.draw.rect(screen, (0, 0, 0), box_rect, border_radius=8)
+            pygame.draw.rect(screen, COLOR_RED, box_rect, width=3, border_radius=8)
+
+            txt_rect = txt_surf.get_rect(center=box_rect.center)
+            screen.blit(txt_surf, txt_rect)
     else:
         draw_text_centered(
             screen,
@@ -104,64 +169,9 @@ def draw_dashboard(
             font_small,
             (100, 100, 100),
             center_x,
-            y_start + 150,
+            y_start + 160,
         )
-    if angles is None:
-        return
 
-    # lewa
-    pygame.draw.rect(
-        screen,
-        COLOR_PANEL,
-        (left_box_x, box_y, box_width, box_height),
-        border_radius=15,
-    )
-    draw_text_centered(
-        screen, "Lewa ręka", font_med, COLOR_TEXT, left_center_x, y_start + 50
-    )
-    draw_text_centered(
-        screen,
-        str(trainer.reps_left),
-        font_big,
-        COLOR_ACCENT,
-        left_center_x,
-        y_start + 110,
-    )
-    draw_text_centered(
-        screen, "powtórzeń", font_small, (150, 150, 150), left_center_x, y_start + 150
-    )
-    ang_l = angles.get("left_elbow")
-    val_l = f"{int(ang_l)}°" if ang_l else "--"
-    draw_text_centered(
-        screen, f"Kąt: {val_l}", font_small, COLOR_TEXT, left_center_x, y_start + 190
-    )
-
-    # prawa
-    pygame.draw.rect(
-        screen,
-        COLOR_PANEL,
-        (right_box_x, box_y, box_width, box_height),
-        border_radius=15,
-    )
-    draw_text_centered(
-        screen, "Prawa Ręka", font_med, COLOR_TEXT, right_center_x, y_start + 50
-    )
-    draw_text_centered(
-        screen,
-        str(trainer.reps_right),
-        font_big,
-        COLOR_ACCENT,
-        right_center_x,
-        y_start + 110,
-    )
-    draw_text_centered(
-        screen, "powtórzeń", font_small, (150, 150, 150), right_center_x, y_start + 150
-    )
-    ang_r = angles.get("right_elbow")
-    val_r = f"{int(ang_r)}°" if ang_r else "--"
-    draw_text_centered(
-        screen, f"Kąt: {val_r}", font_small, COLOR_TEXT, right_center_x, y_start + 190
-    )
 
 # rysowanie kolorowego szkieletu (dobrze - zielony, zle - czerwony)
 def detect_and_draw(frame, model, draw_color=(0, 255, 0)):
@@ -195,7 +205,7 @@ def _landmark_dict(results):
     lm = results.pose_landmarks.landmark
     return {i: (lm[i].x, lm[i].y) for i in range(len(lm))}
 
-    #matematyka
+    # matematyka
 
 
 def _triangulate_point(x1, y1, x2, y2, focal=1.0, baseline=0.6):
@@ -375,7 +385,9 @@ def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline
 
     return angles
 
-    #handler dla komend glosowych
+    # handler dla komend glosowych
+
+
 def process_command(voice_control, exercise_type, workout_manager, trainer):
     cmd = voice_control.last_command
 
@@ -385,7 +397,7 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
     # obsluga start stop
     if cmd == "start":
         if exercise_type == "none":
-            ng.notif.add_notification("Najpierw wybierz ćwiczenie!",duration_seconds=2.0,)
+            ng.notif.add_notification("Najpierw wybierz ćwiczenie!", duration_seconds=2.0, )
         else:
             voice_control.started = True
 
@@ -398,16 +410,16 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
         sets_completed = workout_manager.sets_done.get(exercise_type, 0)
 
         if (
-            exercise_type != "none"
-            and sets_completed > 0
-            and not workout_manager.is_workout_complete(exercise_type)
+                exercise_type != "none"
+                and sets_completed > 0
+                and not workout_manager.is_workout_complete(exercise_type)
         ):
 
-            ng.notif.add_notification(f"[BLOKADA] Ukończ serie dla '{exercise_type}'!",duration_seconds=2.0,)
+            ng.notif.add_notification(f"[BLOKADA] Ukończ serie dla '{exercise_type}'!", duration_seconds=2.0, )
 
         else:
             exercise_type = cmd
-            ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}",duration_seconds=2.0,)
+            ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}", duration_seconds=2.0, )
 
     # resetowanie w kolejnej funkcji wiec last_command czyscimy tam
     if cmd != "reset":
