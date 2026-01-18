@@ -146,6 +146,7 @@ def handle_training_state(
     workout_manager,
     db,
     voice_control,
+    speaker,
     cap_local,
     cam_ip,
     pose_local,
@@ -178,9 +179,11 @@ def handle_training_state(
 
             workout_manager.mark_set_complete(game_state.exercise_type)
             trainer.reset()
+            if speaker:
+                speaker.say(f"Super robota! Seria zapisana.")
 
-    game_state.exercise_type = process_command(voice_control, game_state.exercise_type, workout_manager, trainer)
-    voice_control.last_command = workout_manager.reset_targets(voice_control.last_command, voice_control.started, game_state.exercise_type)
+    game_state.exercise_type = process_command(voice_control, game_state.exercise_type, workout_manager, trainer, speaker)
+    voice_control.last_command = workout_manager.reset_targets(voice_control.last_command, voice_control.started, game_state.exercise_type, speaker)
 
     for event in events:
         if event.type == pygame.KEYDOWN:
@@ -231,6 +234,13 @@ def handle_training_state(
                 results1, results2, focal=1.0, baseline=0.6
             )
             trainer.process_shoulders(angles)
+
+    # obsluga feedbacku glosowego
+    if speaker and trainer.feedback:
+        last_msg = trainer.feedback[-1]
+
+        text_to_say = last_msg.replace("LEWA:", "Lewa ręka").replace("PRAWA:", "Prawa ręka")
+        speaker.say(text_to_say)
 
     screen.fill(COLOR_BG)
 
