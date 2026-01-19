@@ -1,6 +1,13 @@
 from settings import *
 from datetime import datetime
 import notification_global as ng
+import pyttsx3
+import queue
+import pythoncom
+
+# blokada nasluchiwania podczas mowienia przez trenera
+global IS_SPEAKING
+IS_SPEAKING = False
 
 class IPStream:
     def __init__(self, url):
@@ -37,7 +44,7 @@ class VoiceThread:
 
         # Inicjalizacja modelu
         if not os.path.exists(model_path):
-            print(" [Voice] BŁĄD: Nie znaleziono modelu Vosk w folderze:", model_path)
+            print(" [Voice] BLAD: Nie znaleziono modelu Vosk w folderze:", model_path)
             self.running = False
             return
 
@@ -60,6 +67,7 @@ class VoiceThread:
         print(" [VoiceThread] Aktywny (Vosk)")
 
         p = pyaudio.PyAudio()
+
         stream = p.open(
             format=pyaudio.paInt16,
             channels=1,
@@ -72,17 +80,26 @@ class VoiceThread:
         stream.start_stream()
 
         while self.running:
-            data = self.q.get()
-            if self.recognizer.AcceptWaveform(data):
-                result = json.loads(self.recognizer.Result())
-                text = result.get("text", "")
+            if IS_SPEAKING:
+                with self.q.mutex:
+                    self.q.queue.clear()
+                time.sleep(0.1)
+                continue
+            try:
+                data = self.q.get(timeout=0.4)
+                if self.recognizer.AcceptWaveform(data):
+                    result = json.loads(self.recognizer.Result())
+                    text = result.get("text", "")
 
-                if text:
-                    # DEBUG
-                    print(f" [VOSK] Uslyszałem: '{text}'")
-                    self.last_command = text
-            else:
+                    if text:
+                        # DEBUG
+                        print(f" [VOSK] Uslyszalem: '{text}'")
+                        self.last_command = text
+
+            except queue.Empty:
                 pass
+            except Exception as e:
+                print(f" [VoiceThread Error]: {e}")
 
         stream.stop_stream()
         stream.close()
@@ -90,6 +107,73 @@ class VoiceThread:
 
     def stop(self):
         self.running = False
+
+
+class SpeakerThread:
+    def __init__(self):
+        self.queue = queue.Queue()
+        self.running = True
+        self.thread = threading.Thread(target=self.speak_loop, daemon=True)
+        self.thread.start()
+
+        self.last_spoken = {}
+
+    def speak_loop(self):
+        print(" [Speaker] Watek gotowy.")
+        
+        while self.running:
+            try:
+                # Czekaj na tekst
+                text = self.queue.get(timeout=1)
+                
+                # Inicjalizacja COM (wymagana w wątku)
+                pythoncom.CoInitialize()
+                # DEBUG
+                print(f" [Speaker] Proba wymowy: {text}")
+                
+                try:
+                    IS_SPEAKING = True
+                    # Tworzymy silnik TYLKO na chwilę
+                    engine = pyttsx3.init()
+                    engine.setProperty("rate", 150)
+                    
+                    engine.say(text)
+                    engine.runAndWait()
+                    
+                    # Niszczymy silnik (zwalniamy sterownik audio)
+                    del engine
+                    
+                except Exception as e:
+                    print(f" [Speaker ENGINE Error]: {e}")
+                finally:
+                    IS_SPEAKING = False
+                    pythoncom.CoUninitialize()
+                
+                time.sleep(0.5) # troche czasu zeby dzwiek sie moze skonczyl i voice go nie lapal
+            except queue.Empty:
+                pass
+            except Exception as e:
+                print(f" [Speaker CRITICAL Error]: {e}")
+                IS_SPEAKING = False
+
+    def say(self, text):
+        current_time = time.time()
+
+        last_time = self.last_spoken.get(text, 0)
+        # Zabezpieczenie przed spamem
+        if current_time - last_time < 4.0:
+            return
+        
+        if self.queue.qsize() > 0:
+            with self.queue.mutex:
+                self.queue.queue.clear()
+        
+        self.last_spoken[text] = current_time
+        self.queue.put(text)
+    
+    def stop(self):
+        self.running = False
+
 
 
 class Trainer:
@@ -327,17 +411,21 @@ class WorkoutManager:
         self.target_sets[exercise] = new_val
 
     # sprawdza czy uzytkownik moze zresetowac serie dla danego cwiczenia
-    def reset_targets(self, cmd, started, exercise):
+    def reset_targets(self, cmd, started, exercise, speaker):
         if not exercise:
             return
         if cmd == "reset":
             # czy plan tego cwiczenia skonczony?
             if self.is_workout_complete(exercise):
-                ng.notif.add_notification(f"Ukończono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
+                ng.notif.add_notification(f"Ukonczono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
+                if speaker:
+                    speaker.say(f"Ukończono serie dla {exercise}. Resetowanie licznika.")
                 self.sets_done[exercise] = 0
             else:
                 #nie skonczyl serii a chce zresetowac - zakaz
-                ng.notif.add_notification("Dokoncz serie, zanim zresetujesz! Dasz rade!",duration_seconds=3.0,)
+                ng.notif.add_notification("Dokoncz serie, zanim zresetujesz!",duration_seconds=3.0,)
+                if speaker:
+                    speaker.say("Dokończ serię, zanim zresetujesz!")
 
         return ""
 

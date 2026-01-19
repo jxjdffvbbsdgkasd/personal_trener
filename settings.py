@@ -27,6 +27,7 @@ local_idx = 0
 # ip_url = "http://192.168.254.101:4747/video"
 ip_url = "http://192.168.101.99:4747/video"
 #ip_url = "http://192.168.0.102:4747/video"
+#ip_url = "http://192.168.1.115:4747/video"
 
 COLOR_BG = (15, 15, 25)
 COLOR_PANEL = (30, 35, 45)

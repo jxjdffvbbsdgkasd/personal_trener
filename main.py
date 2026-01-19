@@ -26,11 +26,12 @@ mp_pose = mp.solutions.pose
 pose_local = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 pose_ip = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
-cap_local = cv2.VideoCapture(local_idx)
+cap_local = cv2.VideoCapture(local_idx, cv2.CAP_DSHOW)
 cam_ip = None
 
 # inicjalizacja klas
 voice_control = VoiceThread(model_path="vosk-model")
+speaker = SpeakerThread()
 game_state = GameState()
 trainer = Trainer()
 workout_manager = WorkoutManager()
@@ -40,6 +41,8 @@ angles = None
 
 # budowa ui
 ui = build_ui(CENTER_X, CENTER_Y, font_big, font_med, font_small)
+
+speaker.say("Witaj w Cyber Trenerze!")
 
 while game_state.running:
     screen.fill(COLOR_BG)
@@ -110,6 +113,7 @@ while game_state.running:
             workout_manager,
             db,
             voice_control,
+            speaker,
             cap_local,
             cam_ip,
             pose_local,
@@ -144,6 +148,7 @@ while game_state.running:
     clock.tick(FPS)
 
 voice_control.stop()
+speaker.stop()
 cap_local.release()
 if cam_ip:
     cam_ip.release()

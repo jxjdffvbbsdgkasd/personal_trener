@@ -385,10 +385,8 @@ def compute_angles_3d_shoulders(results_left, results_right, focal=1.0, baseline
 
     return angles
 
-    # handler dla komend glosowych
-
-
-def process_command(voice_control, exercise_type, workout_manager, trainer):
+    #handler dla komend glosowych
+def process_command(voice_control, exercise_type, workout_manager, trainer, speaker):
     cmd = voice_control.last_command
 
     if not cmd:
@@ -397,9 +395,13 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
     # obsluga start stop
     if cmd == "start":
         if exercise_type == "none":
-            ng.notif.add_notification("Najpierw wybierz ćwiczenie!", duration_seconds=2.0, )
+            ng.notif.add_notification("Najpierw wybierz ćwiczenie!",duration_seconds=2.0,)
+            if speaker:
+                speaker.say("Najpierw wybierz ćwiczenie!")
         else:
             voice_control.started = True
+            if speaker:
+                speaker.say("Rozpoczynamy serię!")
 
     elif cmd == "stop":
         voice_control.started = False
@@ -415,11 +417,15 @@ def process_command(voice_control, exercise_type, workout_manager, trainer):
                 and not workout_manager.is_workout_complete(exercise_type)
         ):
 
-            ng.notif.add_notification(f"[BLOKADA] Ukończ serie dla '{exercise_type}'!", duration_seconds=2.0, )
+            ng.notif.add_notification(f"[BLOKADA] Ukończ serie dla '{exercise_type}'!",duration_seconds=2.0,)
+            if speaker:
+                speaker.say(f"Najpierw ukończ obecne ćwiczenie.")
 
         else:
             exercise_type = cmd
-            ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}", duration_seconds=2.0, )
+            ng.notif.add_notification(f" Zmieniono ćwiczenie na: {cmd}",duration_seconds=2.0,)
+            if speaker:
+                speaker.say(f"Wybrano: {cmd}.")
 
     # resetowanie w kolejnej funkcji wiec last_command czyscimy tam
     if cmd != "reset":

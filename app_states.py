@@ -121,9 +121,9 @@ def handle_menu_state(
                 workout_manager.start_new_training()
 
             if cam_ip is None:
-                print(" Nawiązywanie połączenia z kamerą IP..")
+                print("[IPStream] Nawiazywanie polaczenia z kamera IP..")
                 cam_ip = IPStream(ip_url)
-                ng.notif.add_notification("Wybierz ćwiczenie (biceps albo barki)",duration_seconds=5.0,outline_thickness=2,)
+                ng.notif.add_notification("Wybierz ćwiczenie (biceps albo barki)",duration_seconds=3.3,outline_thickness=2,)
 
         if ui["btn_hist"].is_clicked(event):
             game_state.state = "HISTORY"
@@ -154,6 +154,7 @@ def handle_training_state(
     workout_manager,
     db,
     voice_control,
+    speaker,
     cap_local,
     cam_ip,
     pose_local,
@@ -172,7 +173,7 @@ def handle_training_state(
             set_num = workout_manager.get_actual_set_number_for_db(
                 game_state.exercise_type
             )
-            print(f" Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%")
+            print(f"[DB] Koniec serii. Zapisuję do bazy.. Poprawnosc: {acc:.1f}%")
 
             db.save_workout(
                 game_state.user_id,
@@ -186,9 +187,11 @@ def handle_training_state(
 
             workout_manager.mark_set_complete(game_state.exercise_type)
             trainer.reset()
+            if speaker:
+                speaker.say(f"Super robota! Seria zapisana.")
 
-    game_state.exercise_type = process_command(voice_control, game_state.exercise_type, workout_manager, trainer)
-    voice_control.last_command = workout_manager.reset_targets(voice_control.last_command, voice_control.started, game_state.exercise_type)
+    game_state.exercise_type = process_command(voice_control, game_state.exercise_type, workout_manager, trainer, speaker)
+    voice_control.last_command = workout_manager.reset_targets(voice_control.last_command, voice_control.started, game_state.exercise_type, speaker)
 
     for event in events:
         if event.type == pygame.KEYDOWN:
@@ -202,7 +205,7 @@ def handle_training_state(
             if cam_ip is not None:
                 cam_ip.release()
                 cam_ip = None
-                print(" Rozlaczono z kamera IP")
+                print("[IPStream] Rozlaczono z kamera IP")
 
     ret1, frame1 = cap_local.read()
     if cam_ip:
@@ -238,6 +241,13 @@ def handle_training_state(
                 results1, results2, focal=1.0, baseline=0.6
             )
             trainer.process_shoulders(angles)
+
+    # obsluga feedbacku glosowego
+    if speaker and trainer.feedback:
+        last_msg = trainer.feedback[-1]
+
+        text_to_say = last_msg.replace("LEWA:", "Lewa ręka").replace("PRAWA:", "Prawa ręka")
+        speaker.say(text_to_say)
 
     screen.fill(COLOR_BG)
 
