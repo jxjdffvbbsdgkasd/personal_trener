@@ -6,6 +6,7 @@ import queue
 import pythoncom
 
 # blokada nasluchiwania podczas mowienia przez trenera
+global IS_SPEAKING
 IS_SPEAKING = False
 
 class IPStream:
@@ -43,7 +44,7 @@ class VoiceThread:
 
         # Inicjalizacja modelu
         if not os.path.exists(model_path):
-            print(" [Voice] BŁĄD: Nie znaleziono modelu Vosk w folderze:", model_path)
+            print(" [Voice] BLAD: Nie znaleziono modelu Vosk w folderze:", model_path)
             self.running = False
             return
 
@@ -85,14 +86,14 @@ class VoiceThread:
                 time.sleep(0.1)
                 continue
             try:
-                data = self.q.get(timeout=0.2)
+                data = self.q.get(timeout=0.4)
                 if self.recognizer.AcceptWaveform(data):
                     result = json.loads(self.recognizer.Result())
                     text = result.get("text", "")
 
                     if text:
                         # DEBUG
-                        print(f" [VOSK] Uslyszałem: '{text}'")
+                        print(f" [VOSK] Uslyszalem: '{text}'")
                         self.last_command = text
 
             except queue.Empty:
@@ -118,7 +119,7 @@ class SpeakerThread:
         self.last_spoken = {}
 
     def speak_loop(self):
-        print(" [Speaker] Wątek gotowy.")
+        print(" [Speaker] Watek gotowy.")
         
         while self.running:
             try:
@@ -128,7 +129,7 @@ class SpeakerThread:
                 # Inicjalizacja COM (wymagana w wątku)
                 pythoncom.CoInitialize()
                 # DEBUG
-                print(f" [Speaker] Próba wymowy: {text}")
+                print(f" [Speaker] Proba wymowy: {text}")
                 
                 try:
                     IS_SPEAKING = True
@@ -147,6 +148,8 @@ class SpeakerThread:
                 finally:
                     IS_SPEAKING = False
                     pythoncom.CoUninitialize()
+                
+                time.sleep(0.5) # troche czasu zeby dzwiek sie moze skonczyl i voice go nie lapal
             except queue.Empty:
                 pass
             except Exception as e:
@@ -414,13 +417,13 @@ class WorkoutManager:
         if cmd == "reset":
             # czy plan tego cwiczenia skonczony?
             if self.is_workout_complete(exercise):
-                ng.notif.add_notification(f"Ukończono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
+                ng.notif.add_notification(f"Ukonczono serie dla '{exercise}'. Resetowanie licznika.",duration_seconds=3.0,)
                 if speaker:
                     speaker.say(f"Ukończono serie dla {exercise}. Resetowanie licznika.")
                 self.sets_done[exercise] = 0
             else:
                 #nie skonczyl serii a chce zresetowac - zakaz
-                ng.notif.add_notification("Dokończ serię, zanim zresetujesz!",duration_seconds=3.0,)
+                ng.notif.add_notification("Dokoncz serie, zanim zresetujesz!",duration_seconds=3.0,)
                 if speaker:
                     speaker.say("Dokończ serię, zanim zresetujesz!")
 

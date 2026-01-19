@@ -367,8 +367,6 @@ def process_command(voice_control, exercise_type, workout_manager, trainer, spea
     # obsluga start stop
     if cmd == "start":
         if exercise_type == "none":
-            #print(" Wybierz ćwiczenie najpierw!")
-            #trainer.system_message.append("Najpierw wybierz ćwiczenie!")
             ng.notif.add_notification("Najpierw wybierz ćwiczenie!",duration_seconds=2.0,)
             if speaker:
                 speaker.say("Najpierw wybierz ćwiczenie!")

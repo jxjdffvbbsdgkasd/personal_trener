@@ -113,9 +113,9 @@ def handle_menu_state(
                 workout_manager.start_new_training()
 
             if cam_ip is None:
-                print(" Nawiązywanie połączenia z kamerą IP..")
+                print("[IPStream] Nawiazywanie polaczenia z kamera IP..")
                 cam_ip = IPStream(ip_url)
-                ng.notif.add_notification("Wybierz ćwiczenie (biceps albo barki)",duration_seconds=5.0,outline_thickness=2,)
+                ng.notif.add_notification("Wybierz ćwiczenie (biceps albo barki)",duration_seconds=3.3,outline_thickness=2,)
 
         if ui["btn_hist"].is_clicked(event):
             game_state.state = "HISTORY"
@@ -165,7 +165,7 @@ def handle_training_state(
             set_num = workout_manager.get_actual_set_number_for_db(
                 game_state.exercise_type
             )
-            print(f" Koniec serii. Zapisuję do bazy.. Poprawność: {acc:.1f}%")
+            print(f"[DB] Koniec serii. Zapisuję do bazy.. Poprawnosc: {acc:.1f}%")
 
             db.save_workout(
                 game_state.user_id,
@@ -197,7 +197,7 @@ def handle_training_state(
             if cam_ip is not None:
                 cam_ip.release()
                 cam_ip = None
-                print(" Rozlaczono z kamera IP")
+                print("[IPStream] Rozlaczono z kamera IP")
 
     # cameras
     ret1, frame1 = cap_local.read()
