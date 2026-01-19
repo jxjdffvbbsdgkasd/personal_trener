@@ -24,26 +24,27 @@ WIN_H = CAM_H + DASH_H  # Całkowita wysokość (700)
 
 local_idx = 0
 # ip_url = "http://192.168.33.10:8080/video"
-ip_url = "http://192.168.254.101:4747/video"
+# ip_url = "http://192.168.254.101:4747/video"
+ip_url = "http://192.168.101.99:4747/video"
 #ip_url = "http://192.168.0.102:4747/video"
 #ip_url = "http://192.168.1.115:4747/video"
 
-COLOR_BG = (20, 20, 25)
-COLOR_PANEL = (40, 40, 45)
-COLOR_TEXT = (220, 220, 220)
-COLOR_ACCENT = (0, 200, 255)
-COLOR_GREEN = (50, 205, 50)
-COLOR_RED = (220, 60, 60)
+COLOR_BG = (15, 15, 25)
+COLOR_PANEL = (30, 35, 45)
+COLOR_TEXT = (240, 240, 240)
+COLOR_ACCENT = (0, 255, 200)
+COLOR_GREEN = (0, 230, 64)
+COLOR_RED = (255, 60, 80)
 
 exercises = ["biceps", "barki"]
 state = ["start", "stop"]
 
 # kolory ui
-COLOR_INACTIVE = pygame.Color("lightskyblue3")
-COLOR_ACTIVE = pygame.Color("dodgerblue2")
+COLOR_INACTIVE = (60, 60, 70)
+COLOR_ACTIVE = (0, 200, 255)
 COLOR_BUTTON_TEXT = (255, 255, 255)
-COLOR_BUTTON_DEF = (70, 70, 80)
-COLOR_BUTTON_HOVER = (100, 100, 110)
+COLOR_BUTTON_DEF = (50, 50, 60)
+COLOR_BUTTON_HOVER = (70, 70, 90)
 
 # konfiguracja ui
 CENTER_X = WIN_W // 2
