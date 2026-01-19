@@ -30,7 +30,7 @@ cap_local = cv2.VideoCapture(local_idx, cv2.CAP_DSHOW)
 cam_ip = None
 
 # inicjalizacja klas
-voice_control = VoiceThread(model_path="vosk-model")
+voice_control = None
 speaker = SpeakerThread()
 game_state = GameState()
 trainer = Trainer()
@@ -104,6 +104,8 @@ while game_state.running:
 
     # STAN TRENINGU
     elif game_state.state == "TRAINING":
+        if voice_control is None:
+            voice_control = VoiceThread(model_path="vosk-model")
         cam_ip, angles = handle_training_state(
             screen,
             ui,

@@ -186,9 +186,10 @@ def handle_training_state(
             )
 
             workout_manager.mark_set_complete(game_state.exercise_type)
-            trainer.reset()
-            if speaker:
+            if speaker and (trainer.reps_left > 0 or trainer.reps_right > 0):
+                ng.notif.add_notification("Seria zakończona i zapisana!", outline_thickness=2,)
                 speaker.say(f"Super robota! Seria zapisana.")
+            trainer.reset()
 
     game_state.exercise_type = process_command(voice_control, game_state.exercise_type, workout_manager, trainer, speaker)
     voice_control.last_command = workout_manager.reset_targets(voice_control.last_command, voice_control.started, game_state.exercise_type, speaker)
