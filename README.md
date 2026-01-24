@@ -47,7 +47,7 @@ Model rozpoznawania mowy został już dołączony do repozytorium, w celu ułatw
 
 ```bash
 git clone https://github.com/jxjdffvbbsdgkasd/personal_trener.git
-cd CyberTrener
+cd personal_trener
 ```
 
 ### 2. Instalacja zależności
