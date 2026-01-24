@@ -105,7 +105,7 @@ Aby skorzystać z drugiej kamery (np. telefon) dla pełnej analizy 3D:
 2. Otwórz plik settings.py i podmień adres IP w zmiennej ip_url:
 
 ```python
-ip_url = "http://192.168.X.X:YYYY/video"
+ip_url = "http://X.X.X.X:YYYY/video"
 ```
 
 ## Obsługa aplikacji
