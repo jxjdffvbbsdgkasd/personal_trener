@@ -50,7 +50,7 @@ Model rozpoznawania mowy został już dołączony do repozytorium, w celu ułatw
 
 ```bash
 git clone https://github.com/jxjdffvbbsdgkasd/personal_trener.git
-cd CyberTrener
+cd personal_trener
 ```
 
 ### 2. Instalacja zależności
@@ -123,6 +123,14 @@ Poprawne ustawienie kamer jest kluczowe do poprawnego działania aplikacji.
    - "Stop" - Zakończenie serii i zapis do bazy.
    - "Reset" - Wyzerowanie liczników.
 
+## Uruchomienie
+
+Aby włączyć aplikację, wpisz w terminalu:
+
+```bash
+python main.py
+```
+
 ## Możliwe problemy
 
 ### **Błąd:**
@@ -146,14 +154,6 @@ No suitable Python runtime found
 
 Spowodowany jest tym, że system nie widzi zainstalowanego Pythona 3.11 w ścieżkach systemowych PATH.
 Wystarczy użyć pełnej ścieżki do pliku wykonywalnego przy tworzeniu venv.
-
-## Uruchomienie
-
-Aby włączyć aplikację, wpisz w terminalu:
-
-```bash
-python main.py
-```
 
 ## Autorzy
 
