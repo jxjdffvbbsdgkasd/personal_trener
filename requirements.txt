@@ -1,7 +1,10 @@
-opencv-python
-numpy
-mediapipe
+opencv-python<4.10
+opencv-contrib-python<4.10
+numpy<2
+mediapipe==0.10.9
+protobuf==3.20.3
 pygame
 vosk
 pyaudio
 SpeechRecognition
+pyttsx3

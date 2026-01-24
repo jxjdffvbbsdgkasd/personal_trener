@@ -1,6 +1,6 @@
 # Cyber Trener – System Analizy Biomechaniki Ruchu
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-green)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-Pose%20Estimation-orange)
 ![Vosk](https://img.shields.io/badge/Vosk-Offline%20ASR-yellow)
@@ -41,6 +41,9 @@ Projekt oparty jest na języku **Python** i wykorzystuje architekturę wielowąt
 
 ## Instalacja i Konfiguracja
 
+> **WAŻNE:** Projekt wymaga Pythona w wersji **3.11** (zalecamy).
+> Biblioteka `mediapipe` nie obsługuje poprawnie nowszych wersji (np. 3.13).
+
 Model rozpoznawania mowy został już dołączony do repozytorium, w celu ułatwienia instalacji.
 
 ### 1. Klonowanie repozytorium
@@ -52,7 +55,15 @@ cd CyberTrener
 
 ### 2. Instalacja zależności
 
-Zalecane jest użycie wirtualnego środowiska (venv).
+Zalecamy wymuszenie wersji 3.11 przy tworzeniu środowiska.
+
+Jeśli masz zainstalowany Python Launcher:
+
+```bash
+py -3.11 -m venv venv
+```
+
+Jeśli używasz standardowej komendy (upewnij się, że to wersja 3.11):
 
 ```bash
 python -m venv venv
@@ -111,6 +122,30 @@ Poprawne ustawienie kamer jest kluczowe do poprawnego działania aplikacji.
    - "Start" - Rozpoczęcie analizy i zliczania.
    - "Stop" - Zakończenie serii i zapis do bazy.
    - "Reset" - Wyzerowanie liczników.
+
+## Możliwe problemy
+
+### **Błąd:**
+
+```bash
+AttributeError: module 'mediapipe' has no attribute 'solutions'
+```
+
+Spowodowany jest zbyt nową wersją Pythona, której MediaPipe jeszcze nie wspiera.
+Rozwiązanie:
+
+1. Zainstaluj Python 3.11 z python.org (pamiętaj o dodaniu przy instalacji do ścieżek systemowych PATH)
+2. Usuń folder venv.
+3. Stwórz środowisko od nowa wskazując na starszą wersję (patrz kroki instalacji).
+
+### **Błąd: (przy komendzie py -3.11)**
+
+```bash
+No suitable Python runtime found
+```
+
+Spowodowany jest tym, że system nie widzi zainstalowanego Pythona 3.11 w ścieżkach systemowych PATH.
+Wystarczy użyć pełnej ścieżki do pliku wykonywalnego przy tworzeniu venv.
 
 ## Uruchomienie
 
